@@ -22,11 +22,9 @@ import { useUserStore } from '../stores/userStore';
 import { useThemeStore } from '../stores/themeStore';
 import { foodAPI } from '../services/api';
 import { format, isToday, isYesterday, parseISO, subDays, addDays } from 'date-fns';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Svg, { Circle, G } from 'react-native-svg';
-import axios from 'axios';
-import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
