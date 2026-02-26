@@ -74,7 +74,8 @@
         {
           "motionPermission": "Allow FitTrax+ to access motion data for step tracking."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
