@@ -96,7 +96,7 @@ Billing
 
 Cancellation
 
-You may cancel through Stripe, your account settings or the platform (Apple App Store or Google Play) where you subscribed. Access continues through the end of the billing period.
+You may cancel through your account settings or the platform (Apple App Store or Google Play) where you subscribed. Access continues through the end of the billing period.
 
 Deleting the app does not cancel your subscription.
 
