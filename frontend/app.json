@@ -1,21 +1,44 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "FitTrax+",
+    "slug": "fittrax-plus",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
-    "userInterfaceStyle": "automatic",
+    "scheme": "fittraxplus",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0D0D"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fittraxplus.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Scan food items and barcodes for quick nutrition logging.",
+        "NSPhotoLibraryUsageDescription": "Save progress photos and share your fitness achievements.",
+        "NSMicrophoneUsageDescription": "Record personalized voice greetings for your dashboard.",
+        "NSLocationWhenInUseUsageDescription": "Track your running routes and outdoor workouts.",
+        "NSMotionUsageDescription": "Count your steps and track your daily activity.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#0D0D0D"
       },
+      "package": "com.fittrax.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACTIVITY_RECOGNITION"
+      ],
       "edgeToEdgeEnabled": true
     },
     "web": {
@@ -31,12 +54,37 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#000"
+          "backgroundColor": "#0D0D0D"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow FitTrax+ to access your camera to scan food items."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow FitTrax+ to use your location for tracking outdoor workouts."
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Allow FitTrax+ to access motion data for step tracking."
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "64f7c6ff-d91c-4923-a070-da634dfe7ac1"
+      }
+    },
+    "owner": "ajajz71"
   }
 }
