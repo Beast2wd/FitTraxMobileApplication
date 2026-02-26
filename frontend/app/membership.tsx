@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Linking,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,11 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUserStore } from '../stores/userStore';
 import { useThemeStore } from '../stores/themeStore';
-import axios from 'axios';
 import { router } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
 // Feature images mapping
 const FEATURE_IMAGES: { [key: string]: string } = {
@@ -39,134 +34,47 @@ const FEATURE_IMAGES: { [key: string]: string } = {
   'Accessibility Features': 'https://images.unsplash.com/photo-1634947096506-6d9f114cf64e?w=100&h=100&fit=crop',
 };
 
+// Premium features list
+const PREMIUM_FEATURES = [
+  'AI Food Scanner & Analysis',
+  'AI Body Composition Scan',
+  'AI-Personalized Workouts',
+  'AI Nutrition Coach',
+  'AI Recipe Generator',
+  'AI Groceries Planner',
+  'Custom Meal Planning & Nutrition',
+  'Gamification: Badges & Challenges',
+  'Advanced Progress Analytics',
+  'Wearable Device Integration',
+  'Diverse Workout Library (Yoga, HIIT, Dance, Martial Arts)',
+  'Peptide Calculator, Tracking and FitTrax Peptide AI',
+  'Multi-Language Support (EN, ES, DE)',
+  'Accessibility Features',
+];
+
 export default function MembershipScreen() {
   const { userId, profile } = useUserStore();
   const { theme } = useThemeStore();
-  const [loading, setLoading] = useState(true);
-  const [membershipStatus, setMembershipStatus] = useState<any>(null);
-  const [pricing, setPricing] = useState<any>(null);
-  const [processingPayment, setProcessingPayment] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const colors = theme.colors;
   const accent = theme.accentColors;
 
-  useEffect(() => {
-    loadMembershipData();
-  }, [userId]);
-
-  const loadMembershipData = async () => {
-    try {
-      setLoading(true);
-      const [statusRes, pricingRes] = await Promise.all([
-        userId ? axios.get(`${API_URL}/api/membership/status/${userId}`) : null,
-        axios.get(`${API_URL}/api/membership/pricing`)
-      ]);
-      
-      if (statusRes) setMembershipStatus(statusRes.data);
-      setPricing(pricingRes.data);
-    } catch (error) {
-      console.error('Error loading membership:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubscribe = async () => {
-    if (!userId || !profile) {
-      Alert.alert('Profile Required', 'Please create a profile first to subscribe.');
-      router.push('/profile');
-      return;
-    }
-
-    setProcessingPayment(true);
-    try {
-      // Create Stripe checkout session
-      const response = await axios.post(`${API_URL}/api/membership/create-checkout-session`, {
-        user_id: userId,
-        email: profile.email || `${profile.name?.replace(/\s/g, '').toLowerCase()}@fittrax.app`,
-      });
-
-      const { checkout_url, session_id } = response.data;
-
-      if (checkout_url) {
-        // Open Stripe checkout in browser
-        const result = await WebBrowser.openBrowserAsync(checkout_url);
-        
-        // After returning from browser, check payment status
-        if (result.type === 'cancel' || result.type === 'dismiss') {
-          // User closed browser - check if payment was completed
-          try {
-            const statusCheck = await axios.get(`${API_URL}/api/membership/checkout-status/${session_id}`);
-            if (statusCheck.data.payment_status === 'paid') {
-              Alert.alert(
-                '🎉 Welcome to Premium!',
-                'Your subscription is now active. Enjoy all premium features!',
-                [{ text: 'Explore Features', onPress: () => router.back() }]
-              );
-              loadMembershipData();
-            }
-          } catch (e) {
-            // Status check failed, reload membership data anyway
-            loadMembershipData();
-          }
-        }
-      }
-    } catch (error: any) {
-      console.error('Payment error:', error);
-      Alert.alert(
-        'Payment Error', 
-        error.response?.data?.detail || 'Failed to start checkout. Please try again.'
-      );
-    } finally {
-      setProcessingPayment(false);
-    }
-  };
-
-  const handleCancelSubscription = async () => {
+  const handleSubscribe = () => {
     Alert.alert(
-      'Cancel Subscription',
-      'Are you sure you want to cancel your premium membership? You\'ll lose access to all premium features at the end of your billing period.',
-      [
-        { text: 'Keep Premium', style: 'cancel' },
-        {
-          text: 'Cancel Subscription',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await axios.post(`${API_URL}/api/membership/cancel/${userId}`);
-              Alert.alert('Subscription Canceled', 'Your subscription has been canceled. You\'ll retain access until the end of your current billing period.');
-              loadMembershipData();
-            } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.detail || 'Failed to cancel subscription');
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const handleManageSubscription = () => {
-    // Open Stripe customer portal (would need to be implemented)
-    Alert.alert(
-      'Manage Subscription',
-      'Contact support to manage your subscription, update payment method, or view billing history.',
+      'Coming Soon!',
+      'In-App Purchases will be available soon through the App Store. Stay tuned for premium features!',
       [{ text: 'OK' }]
     );
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={accent.primary} />
-        </View>
-      </SafeAreaView>
+  const handleNotifyMe = () => {
+    Alert.alert(
+      'We\'ll Notify You!',
+      'You\'ll be notified when Premium subscriptions become available. Thank you for your interest!',
+      [{ text: 'Great!' }]
     );
-  }
-
-  const isPremium = membershipStatus?.is_premium;
-  const isTrial = membershipStatus?.is_trial;
-  const trialDaysRemaining = membershipStatus?.trial_days_remaining || 0;
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
@@ -192,67 +100,41 @@ export default function MembershipScreen() {
           </LinearGradient>
         </View>
 
-        {/* Current Status Card */}
-        {isPremium && (
-          <View style={[styles.statusCard, { backgroundColor: colors.background.card }]}>
-            <LinearGradient
-              colors={isTrial ? ['#F59E0B', '#D97706'] : ['#10B981', '#059669']}
-              style={styles.statusBadge}
-            >
-              <Ionicons name={isTrial ? 'time' : 'checkmark-circle'} size={20} color="#fff" />
-              <Text style={styles.statusBadgeText}>
-                {isTrial ? `Trial: ${trialDaysRemaining} days left` : 'Active Premium'}
-              </Text>
-            </LinearGradient>
-            
-            <Text style={[styles.statusTitle, { color: colors.text.primary }]}>
-              {isTrial ? 'Free Trial Active' : 'Premium Member'}
+        {/* Coming Soon Card */}
+        <View style={[styles.comingSoonCard, { backgroundColor: colors.background.card }]}>
+          <View style={[styles.comingSoonBadge, { backgroundColor: `${accent.primary}20` }]}>
+            <Ionicons name="time-outline" size={20} color={accent.primary} />
+            <Text style={[styles.comingSoonBadgeText, { color: accent.primary }]}>
+              Coming Soon
             </Text>
-            <Text style={[styles.statusDescription, { color: colors.text.secondary }]}>
-              {isTrial 
-                ? `Your trial ends in ${trialDaysRemaining} days. Subscribe to keep premium access.`
-                : 'You have full access to all premium features.'
-              }
-            </Text>
-
-            {!isTrial && (
-              <TouchableOpacity 
-                style={[styles.manageButton, { borderColor: colors.border.secondary }]}
-                onPress={handleCancelSubscription}
-              >
-                <Text style={[styles.manageButtonText, { color: colors.text.secondary }]}>
-                  Cancel Subscription
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
-        )}
+          
+          <Text style={[styles.comingSoonTitle, { color: colors.text.primary }]}>
+            Premium Subscriptions
+          </Text>
+          <Text style={[styles.comingSoonDescription, { color: colors.text.secondary }]}>
+            We're working on bringing you an amazing premium experience with In-App Purchases. 
+            All premium features will be available soon!
+          </Text>
 
-        {/* Pricing Card */}
-        {pricing && !isPremium && (
-          <View style={[styles.pricingCard, { backgroundColor: colors.background.card }]}>
+          {/* Pricing Preview */}
+          <View style={[styles.pricingPreview, { borderColor: colors.border.secondary }]}>
             <View style={styles.priceRow}>
-              <Text style={[styles.priceAmount, { color: colors.text.primary }]}>
-                ${pricing.price}
-              </Text>
-              <Text style={[styles.priceInterval, { color: colors.text.muted }]}>
-                /{pricing.interval}
-              </Text>
+              <Text style={[styles.priceAmount, { color: colors.text.primary }]}>$29.99</Text>
+              <Text style={[styles.priceInterval, { color: colors.text.muted }]}>/year</Text>
             </View>
-            <View style={[styles.trialBadge, { backgroundColor: `${accent.primary}20` }]}>
-              <Text style={[styles.trialBadgeText, { color: accent.primary }]}>
-                {pricing.trial_days}-Day Free Trial
-              </Text>
-            </View>
+            <Text style={[styles.pricingNote, { color: colors.text.secondary }]}>
+              Includes 3-day free trial
+            </Text>
           </View>
-        )}
+        </View>
 
         {/* Features List */}
         <View style={[styles.featuresCard, { backgroundColor: colors.background.card }]}>
           <Text style={[styles.featuresTitle, { color: colors.text.primary }]}>
-            Premium Features
+            Premium Features Preview
           </Text>
-          {pricing?.features?.map((feature: string, index: number) => (
+          {PREMIUM_FEATURES.map((feature: string, index: number) => (
             <View key={index} style={styles.featureRow}>
               <View style={styles.featureImageContainer}>
                 <Image 
@@ -264,88 +146,50 @@ export default function MembershipScreen() {
               <Text style={[styles.featureText, { color: colors.text.primary }]}>
                 {feature}
               </Text>
+              <Ionicons name="lock-closed" size={16} color={colors.text.muted} />
             </View>
           ))}
         </View>
 
-        {/* Subscribe Button */}
-        {!isPremium && (
-          <TouchableOpacity 
-            style={styles.subscribeButton}
-            onPress={handleSubscribe}
-            disabled={processingPayment}
+        {/* Notify Me Button */}
+        <TouchableOpacity 
+          style={styles.subscribeButton}
+          onPress={handleNotifyMe}
+        >
+          <LinearGradient
+            colors={accent.gradient as [string, string]}
+            style={styles.subscribeGradient}
           >
-            <LinearGradient
-              colors={accent.gradient as [string, string]}
-              style={styles.subscribeGradient}
-            >
-              {processingPayment ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="card" size={24} color="#fff" />
-                  <Text style={styles.subscribeText}>
-                    Start {pricing?.trial_days}-Day Free Trial
-                  </Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
+            <Ionicons name="notifications" size={24} color="#fff" />
+            <Text style={styles.subscribeText}>
+              Notify Me When Available
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
 
-        {!isPremium && (
-          <Text style={[styles.disclaimer, { color: colors.text.muted }]}>
-            Cancel anytime during your trial. After {pricing?.trial_days} days, you'll be charged ${pricing?.price}/year.
-            Secure payment powered by Stripe.
-          </Text>
-        )}
+        <Text style={[styles.disclaimer, { color: colors.text.muted }]}>
+          Premium subscriptions will be available through the App Store with secure In-App Purchases. 
+          Cancel anytime.
+        </Text>
 
-        {/* Upgrade prompt for trial users */}
-        {isTrial && (
-          <TouchableOpacity 
-            style={styles.subscribeButton}
-            onPress={handleSubscribe}
-            disabled={processingPayment}
-          >
-            <LinearGradient
-              colors={accent.gradient as [string, string]}
-              style={styles.subscribeGradient}
-            >
-              {processingPayment ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="card" size={24} color="#fff" />
-                  <Text style={styles.subscribeText}>
-                    Subscribe Now - ${pricing?.price}/year
-                  </Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
+        {/* Free Features Note */}
+        <View style={[styles.freeNoteCard, { backgroundColor: colors.background.card }]}>
+          <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+          <View style={styles.freeNoteContent}>
+            <Text style={[styles.freeNoteTitle, { color: colors.text.primary }]}>
+              Enjoy Free Features Now!
+            </Text>
+            <Text style={[styles.freeNoteText, { color: colors.text.secondary }]}>
+              Track workouts, log meals, monitor hydration, and more - all available for free!
+            </Text>
+          </View>
+        </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const getFeatureIcon = (index: number): string => {
-  const icons = [
-    'barbell', 'nutrition', 'trophy', 'analytics', 
-    'watch', 'fitness', 'flask', 'body', 'globe', 'accessibility'
-  ];
-  return icons[index % icons.length];
-};
-
-const getFeatureColor = (index: number): string => {
-  const colors = [
-    '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6',
-    '#EC4899', '#EF4444', '#6366F1', '#8B5CF6', '#06B6D4', '#6366F1'
-  ];
-  return colors[index % colors.length];
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -366,11 +210,6 @@ const styles = StyleSheet.create({
   backHeaderTitle: {
     fontSize: 18,
     fontWeight: '700',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   scrollContent: {
     padding: 16,
@@ -394,73 +233,59 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     marginTop: 4,
   },
-  statusCard: {
+  comingSoonCard: {
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
+    alignItems: 'center',
   },
-  statusBadge: {
+  comingSoonBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 20,
-    gap: 6,
-    marginBottom: 12,
+    gap: 8,
+    marginBottom: 16,
   },
-  statusBadgeText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  statusTitle: {
-    fontSize: 20,
+  comingSoonBadgeText: {
     fontWeight: '700',
-    marginBottom: 4,
-  },
-  statusDescription: {
     fontSize: 14,
-    lineHeight: 20,
   },
-  manageButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderRadius: 10,
-    alignItems: 'center',
+  comingSoonTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  manageButtonText: {
+  comingSoonDescription: {
     fontSize: 14,
-    fontWeight: '600',
-  },
-  pricingCard: {
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
+    lineHeight: 22,
+    textAlign: 'center',
     marginBottom: 20,
+  },
+  pricingPreview: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    width: '100%',
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   priceAmount: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: '800',
   },
   priceInterval: {
-    fontSize: 18,
+    fontSize: 16,
     marginLeft: 4,
   },
-  trialBadge: {
-    marginTop: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  trialBadgeText: {
-    fontWeight: '700',
-    fontSize: 14,
+  pricingNote: {
+    fontSize: 13,
+    marginTop: 4,
   },
   featuresCard: {
     borderRadius: 16,
@@ -487,13 +312,6 @@ const styles = StyleSheet.create({
   featureImage: {
     width: 44,
     height: 44,
-  },
-  featureIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   featureText: {
     flex: 1,
@@ -522,6 +340,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     paddingHorizontal: 20,
+    lineHeight: 18,
+  },
+  freeNoteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 20,
+    gap: 12,
+  },
+  freeNoteContent: {
+    flex: 1,
+  },
+  freeNoteTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  freeNoteText: {
+    fontSize: 13,
     lineHeight: 18,
   },
 });
