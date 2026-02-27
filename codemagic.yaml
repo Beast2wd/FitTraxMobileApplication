@@ -1,3 +1,17 @@
+Earlier we disabled New Architecture for Expo Go testing, but react-native-reanimated requires it to be enabled for iOS builds.
+
+Fix: Update app.json in GitHub
+Go to your GitHub repo: https://github.com/Beast2wd/FitTraxMobileApplication
+Navigate to frontend/app.json
+Click the pencil icon to edit
+Find this line:
+"newArchEnabled": false,
+Change it to:
+"newArchEnabled": true,
+Commit the changes
+Also Update codemagic.yaml
+Edit codemagic.yaml and add the environment variable:
+
 workflows:
   ios-release:
     name: iOS App Store Build
@@ -12,6 +26,7 @@ workflows:
         bundle_identifier: com.fittraxplus.app
       vars:
         BUNDLE_ID: "com.fittraxplus.app"
+        RCT_NEW_ARCH_ENABLED: "1"
       node: 20
       xcode: latest
       cocoapods: default
@@ -29,11 +44,13 @@ workflows:
       - name: Prebuild iOS
         script: |
           cd frontend
+          export RCT_NEW_ARCH_ENABLED=1
           npx expo prebuild --platform ios --clean
           
       - name: Install CocoaPods
         script: |
           cd frontend/ios
+          export RCT_NEW_ARCH_ENABLED=1
           pod install
           
       - name: Set up code signing
