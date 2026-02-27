@@ -43,15 +43,21 @@ workflows:
         script: |
           xcode-project use-profiles
           
-      - name: Build iOS App
+      - name: Find workspace and build
         script: |
           cd frontend/ios
+          # Find the actual workspace name
+          WORKSPACE=$(ls -d *.xcworkspace | head -1)
+          SCHEME=$(echo "$WORKSPACE" | sed 's/.xcworkspace//')
+          echo "Found workspace: $WORKSPACE"
+          echo "Using scheme: $SCHEME"
           xcode-project build-ipa \
-            --workspace "fittraxplus.xcworkspace" \
-            --scheme "fittraxplus"
+            --workspace "$WORKSPACE" \
+            --scheme "$SCHEME"
             
     artifacts:
       - frontend/ios/build/ios/ipa/*.ipa
+      - frontend/ios/**/*.ipa
       
     publishing:
       app_store_connect:
