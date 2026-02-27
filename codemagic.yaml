@@ -12,7 +12,7 @@ workflows:
         bundle_identifier: com.fittraxplus.app
       vars:
         BUNDLE_ID: "com.fittraxplus.app"
-      node: 18
+      node: 20
       xcode: latest
       cocoapods: default
     
@@ -38,23 +38,17 @@ workflows:
           
       - name: Set up code signing
         script: |
-          xcode-project use-profiles --export-options-plist=/Users/builder/export_options.plist
+          xcode-project use-profiles
           
       - name: Build iOS App
         script: |
           cd frontend/ios
-          xcodebuild -workspace "fittraxplus.xcworkspace" \
-            -scheme "fittraxplus" \
-            -configuration Release \
-            -archivePath /Users/builder/build/fittraxplus.xcarchive \
-            archive
-          xcodebuild -exportArchive \
-            -archivePath /Users/builder/build/fittraxplus.xcarchive \
-            -exportPath /Users/builder/build/ipa \
-            -exportOptionsPlist /Users/builder/export_options.plist
+          xcode-project build-ipa \
+            --workspace "fittraxplus.xcworkspace" \
+            --scheme "fittraxplus"
             
     artifacts:
-      - /Users/builder/build/ipa/*.ipa
+      - frontend/ios/build/ios/ipa/*.ipa
       
     publishing:
       app_store_connect:
