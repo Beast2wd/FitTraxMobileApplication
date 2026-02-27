@@ -38,17 +38,23 @@ workflows:
           
       - name: Set up code signing
         script: |
-          xcode-project use-profiles
+          xcode-project use-profiles --export-options-plist=/Users/builder/export_options.plist
           
       - name: Build iOS App
         script: |
           cd frontend/ios
-          xcode-project build-ipa \
-            --workspace "fittraxplus.xcworkspace" \
-            --scheme "fittraxplus"
+          xcodebuild -workspace "fittraxplus.xcworkspace" \
+            -scheme "fittraxplus" \
+            -configuration Release \
+            -archivePath /Users/builder/build/fittraxplus.xcarchive \
+            archive
+          xcodebuild -exportArchive \
+            -archivePath /Users/builder/build/fittraxplus.xcarchive \
+            -exportPath /Users/builder/build/ipa \
+            -exportOptionsPlist /Users/builder/export_options.plist
             
     artifacts:
-      - frontend/ios/build/ios/ipa/*.ipa
+      - /Users/builder/build/ipa/*.ipa
       
     publishing:
       app_store_connect:
