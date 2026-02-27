@@ -1,0 +1,56 @@
+workflows:
+  ios-release:
+    name: iOS App Store Build
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: FitTrax+
+    
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.fittraxplus.app
+      vars:
+        BUNDLE_ID: "com.fittraxplus.app"
+      node: 18
+      xcode: latest
+      cocoapods: default
+    
+    scripts:
+      - name: Install dependencies
+        script: |
+          cd frontend
+          yarn install
+          
+      - name: Install Expo CLI
+        script: |
+          npm install -g eas-cli
+          
+      - name: Prebuild iOS
+        script: |
+          cd frontend
+          npx expo prebuild --platform ios --clean
+          
+      - name: Install CocoaPods
+        script: |
+          cd frontend/ios
+          pod install
+          
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+          
+      - name: Build iOS App
+        script: |
+          cd frontend/ios
+          xcode-project build-ipa \
+            --workspace "fittraxplus.xcworkspace" \
+            --scheme "fittraxplus"
+            
+    artifacts:
+      - frontend/ios/build/ios/ipa/*.ipa
+      
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
