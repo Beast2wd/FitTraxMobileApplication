@@ -46,7 +46,6 @@ workflows:
       - name: Find workspace and build
         script: |
           cd frontend/ios
-          # Find the actual workspace name
           WORKSPACE=$(ls -d *.xcworkspace | head -1)
           SCHEME=$(echo "$WORKSPACE" | sed 's/.xcworkspace//')
           echo "Found workspace: $WORKSPACE"
@@ -63,3 +62,5 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+        submit_to_app_store: false
+        cancel_previous_submissions: true
