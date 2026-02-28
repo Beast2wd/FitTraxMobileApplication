@@ -1,3 +1,18 @@
+Change the publishing section from:
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+        cancel_previous_submissions: true
+To:
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+Full corrected codemagic.yaml:
 workflows:
   ios-release:
     name: iOS App Store Build
@@ -62,5 +77,3 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-        submit_to_app_store: false
-        cancel_previous_submissions: true
