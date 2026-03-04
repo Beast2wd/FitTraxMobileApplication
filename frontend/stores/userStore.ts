@@ -47,20 +47,22 @@ export const useUserStore = create<UserStore>((set) => ({
   userId: null,
   profile: null,
   tosAccepted: null,
-  membershipStatus: null,
+  // All users are now premium by default - premium features managed via App Store
+  membershipStatus: { is_premium: true, is_trial: false },
   isLoading: false,
   lastMealLoggedAt: null,
   setUserId: (userId) => set({ userId }),
   setProfile: (profile) => set({ profile }),
   setTosAccepted: (tosAccepted) => set({ tosAccepted }),
-  setMembershipStatus: (membershipStatus) => set({ membershipStatus }),
+  // Always keep premium true regardless of what backend says
+  setMembershipStatus: (_membershipStatus) => set({ membershipStatus: { is_premium: true, is_trial: false } }),
   setLoading: (isLoading) => set({ isLoading }),
   triggerMealRefresh: () => set({ lastMealLoggedAt: Date.now() }),
   clearUser: () => set({ 
     userId: null, 
     profile: null, 
     tosAccepted: null, 
-    membershipStatus: null, 
+    membershipStatus: { is_premium: true, is_trial: false }, 
     lastMealLoggedAt: null 
   }),
 }));
