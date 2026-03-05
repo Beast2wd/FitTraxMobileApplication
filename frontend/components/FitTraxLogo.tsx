@@ -24,9 +24,12 @@ export const FitTraxLogo: React.FC<FitTraxLogoProps> = ({
   const { theme } = useThemeStore();
   const { icon: iconSize, fontSize, subtitleSize } = sizes[size];
   const gradientColors = theme.accentColors.gradient;
+  
+  // Use column layout for large and xlarge sizes to prevent cutoff
+  const isLargeSize = size === 'large' || size === 'xlarge';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isLargeSize && styles.containerColumn]}>
       <View style={[styles.iconWrapper, { width: iconSize, height: iconSize }]}>
         <Svg width={iconSize} height={iconSize} viewBox="0 0 100 100">
           <Defs>
