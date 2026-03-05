@@ -124,6 +124,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  containerColumn: {
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
   iconWrapper: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -131,6 +135,11 @@ const styles = StyleSheet.create({
   textContainer: {
     marginLeft: 12,
     alignItems: 'flex-start',
+  },
+  textContainerCenter: {
+    marginLeft: 0,
+    marginTop: 16,
+    alignItems: 'center',
   },
   title: {
     fontWeight: '800',
@@ -141,6 +150,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginTop: 2,
     opacity: 0.7,
+  },
+  subtitleCenter: {
+    textAlign: 'center',
   },
 });
 
