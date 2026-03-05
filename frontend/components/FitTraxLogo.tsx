@@ -98,7 +98,7 @@ export const FitTraxLogo: React.FC<FitTraxLogoProps> = ({
       </View>
       
       {showText && variant === 'full' && (
-        <View style={styles.textContainer}>
+        <View style={[styles.textContainer, isLargeSize && styles.textContainerCenter]}>
           <Text style={[
             styles.title, 
             { fontSize, color: theme.colors.text.primary }
@@ -107,7 +107,8 @@ export const FitTraxLogo: React.FC<FitTraxLogoProps> = ({
           </Text>
           <Text style={[
             styles.subtitle, 
-            { fontSize: subtitleSize, color: theme.colors.text.muted }
+            { fontSize: subtitleSize, color: theme.colors.text.muted },
+            isLargeSize && styles.subtitleCenter
           ]}>
             TRAIN • TRACK • TRANSFORM
           </Text>
