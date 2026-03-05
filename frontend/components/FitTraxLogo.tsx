@@ -12,8 +12,8 @@ interface FitTraxLogoProps {
 const sizes = {
   small: { icon: 40, fontSize: 18, subtitleSize: 8 },
   medium: { icon: 56, fontSize: 24, subtitleSize: 10 },
-  large: { icon: 80, fontSize: 36, subtitleSize: 14 },
-  xlarge: { icon: 120, fontSize: 48, subtitleSize: 18 },
+  large: { icon: 80, fontSize: 32, subtitleSize: 12 },
+  xlarge: { icon: 100, fontSize: 36, subtitleSize: 14 },
 };
 
 export const FitTraxLogo: React.FC<FitTraxLogoProps> = ({ 
