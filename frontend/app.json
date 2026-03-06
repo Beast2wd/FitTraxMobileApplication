@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "fittraxplus",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -16,14 +16,20 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fittraxplus.app",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "infoPlist": {
         "NSCameraUsageDescription": "Scan food items and barcodes for quick nutrition logging.",
         "NSPhotoLibraryUsageDescription": "Save progress photos and share your fitness achievements.",
         "NSMicrophoneUsageDescription": "Record personalized voice greetings for your dashboard.",
         "NSLocationWhenInUseUsageDescription": "Track your running routes and outdoor workouts.",
         "NSMotionUsageDescription": "Count your steps and track your daily activity.",
+        "NSHealthShareUsageDescription": "Read your health data to track calories burned during workouts.",
+        "NSHealthUpdateUsageDescription": "Save your workout and fitness data to Apple Health.",
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": []
       }
     },
     "android": {
