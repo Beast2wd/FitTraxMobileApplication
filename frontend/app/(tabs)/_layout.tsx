@@ -53,17 +53,21 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="workout"
+        options={{
+          title: 'Workout',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="barbell" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="scan"
         options={{
           title: t('tabs.scan'),
           tabBarIcon: ({ color, size }) => (
             <View>
               <Ionicons name="scan" size={size} color={color} />
-              {!isPremium && (
-                <View style={styles.premiumBadge}>
-                  <Ionicons name="diamond" size={8} color="#fff" />
-                </View>
-              )}
             </View>
           ),
         }}
