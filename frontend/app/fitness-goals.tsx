@@ -201,34 +201,347 @@ export default function FitnessGoalsScreen() {
     };
   };
 
-  // Generate weekly workouts based on goal
+  // Generate weekly workouts based on goal with detailed exercises
   const generateWeeklyWorkouts = (prefs: any, daysPerWeek: number) => {
-    const workoutTemplates: { [key: string]: string[] } = {
-      'weight_loss': ['HIIT Cardio', 'Full Body Circuit', 'Cardio & Core', 'Metabolic Conditioning', 'Active Recovery'],
-      'muscle_gain': ['Upper Body Push', 'Lower Body', 'Upper Body Pull', 'Full Body Strength', 'Arms & Shoulders'],
-      'endurance': ['Long Cardio', 'Interval Training', 'Circuit Training', 'Tempo Run', 'Cross Training'],
-      'flexibility': ['Yoga Flow', 'Dynamic Stretching', 'Mobility Work', 'Recovery Session', 'Balance Training'],
-      'tone': ['Total Body Toning', 'Lower Body Sculpt', 'Upper Body Definition', 'Core & Cardio', 'Full Body HIIT'],
-      'general': ['Cardio Mix', 'Strength Training', 'Flexibility', 'HIIT', 'Active Recovery'],
+    // Workout templates with exercises for each goal
+    const workoutTemplates: { [key: string]: { name: string; exercises: { name: string; sets: number; reps: string; rest: string }[] }[] } = {
+      'weight_loss': [
+        {
+          name: 'HIIT Cardio',
+          exercises: [
+            { name: 'Jumping Jacks', sets: 3, reps: '45 sec', rest: '15 sec' },
+            { name: 'Burpees', sets: 3, reps: '30 sec', rest: '30 sec' },
+            { name: 'Mountain Climbers', sets: 3, reps: '45 sec', rest: '15 sec' },
+            { name: 'High Knees', sets: 3, reps: '45 sec', rest: '15 sec' },
+            { name: 'Jump Squats', sets: 3, reps: '30 sec', rest: '30 sec' },
+            { name: 'Plank Jacks', sets: 3, reps: '30 sec', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Full Body Circuit',
+          exercises: [
+            { name: 'Squat to Press', sets: 3, reps: '12 reps', rest: '30 sec' },
+            { name: 'Renegade Rows', sets: 3, reps: '10 each', rest: '30 sec' },
+            { name: 'Lunges with Twist', sets: 3, reps: '10 each', rest: '30 sec' },
+            { name: 'Push-up to T-Rotation', sets: 3, reps: '10 reps', rest: '30 sec' },
+            { name: 'Deadlift to Row', sets: 3, reps: '12 reps', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Cardio & Core',
+          exercises: [
+            { name: 'Bicycle Crunches', sets: 3, reps: '20 each', rest: '20 sec' },
+            { name: 'Plank Hold', sets: 3, reps: '45 sec', rest: '15 sec' },
+            { name: 'Russian Twists', sets: 3, reps: '20 each', rest: '20 sec' },
+            { name: 'Leg Raises', sets: 3, reps: '15 reps', rest: '20 sec' },
+            { name: 'Box Jumps / Step Ups', sets: 3, reps: '12 reps', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Metabolic Conditioning',
+          exercises: [
+            { name: 'Kettlebell Swings', sets: 4, reps: '20 reps', rest: '30 sec' },
+            { name: 'Box Step Overs', sets: 3, reps: '30 sec', rest: '20 sec' },
+            { name: 'Battle Ropes', sets: 3, reps: '30 sec', rest: '30 sec' },
+            { name: 'Sled Push / Walking Lunges', sets: 3, reps: '40 yards', rest: '45 sec' },
+            { name: 'Wall Balls', sets: 3, reps: '15 reps', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Active Recovery',
+          exercises: [
+            { name: 'Light Walking', sets: 1, reps: '15 min', rest: '-' },
+            { name: 'Foam Rolling', sets: 1, reps: '10 min', rest: '-' },
+            { name: 'Stretching Routine', sets: 1, reps: '15 min', rest: '-' },
+            { name: 'Deep Breathing', sets: 1, reps: '5 min', rest: '-' },
+          ]
+        },
+      ],
+      'muscle_gain': [
+        {
+          name: 'Upper Body Push',
+          exercises: [
+            { name: 'Bench Press', sets: 4, reps: '8-10 reps', rest: '90 sec' },
+            { name: 'Incline Dumbbell Press', sets: 3, reps: '10-12 reps', rest: '60 sec' },
+            { name: 'Overhead Press', sets: 4, reps: '8-10 reps', rest: '90 sec' },
+            { name: 'Dips', sets: 3, reps: '10-12 reps', rest: '60 sec' },
+            { name: 'Tricep Pushdowns', sets: 3, reps: '12-15 reps', rest: '45 sec' },
+            { name: 'Lateral Raises', sets: 3, reps: '12-15 reps', rest: '45 sec' },
+          ]
+        },
+        {
+          name: 'Lower Body',
+          exercises: [
+            { name: 'Barbell Squats', sets: 4, reps: '8-10 reps', rest: '120 sec' },
+            { name: 'Romanian Deadlifts', sets: 4, reps: '10-12 reps', rest: '90 sec' },
+            { name: 'Leg Press', sets: 3, reps: '12-15 reps', rest: '60 sec' },
+            { name: 'Walking Lunges', sets: 3, reps: '12 each', rest: '60 sec' },
+            { name: 'Leg Curls', sets: 3, reps: '12-15 reps', rest: '45 sec' },
+            { name: 'Calf Raises', sets: 4, reps: '15-20 reps', rest: '45 sec' },
+          ]
+        },
+        {
+          name: 'Upper Body Pull',
+          exercises: [
+            { name: 'Deadlifts', sets: 4, reps: '6-8 reps', rest: '120 sec' },
+            { name: 'Pull-ups / Lat Pulldowns', sets: 4, reps: '8-10 reps', rest: '90 sec' },
+            { name: 'Barbell Rows', sets: 4, reps: '8-10 reps', rest: '90 sec' },
+            { name: 'Face Pulls', sets: 3, reps: '15-20 reps', rest: '45 sec' },
+            { name: 'Barbell Curls', sets: 3, reps: '10-12 reps', rest: '45 sec' },
+            { name: 'Hammer Curls', sets: 3, reps: '12-15 reps', rest: '45 sec' },
+          ]
+        },
+        {
+          name: 'Full Body Strength',
+          exercises: [
+            { name: 'Front Squats', sets: 4, reps: '8 reps', rest: '90 sec' },
+            { name: 'Push Press', sets: 4, reps: '8 reps', rest: '90 sec' },
+            { name: 'Weighted Pull-ups', sets: 3, reps: '6-8 reps', rest: '90 sec' },
+            { name: 'Dumbbell Lunges', sets: 3, reps: '10 each', rest: '60 sec' },
+            { name: 'Plank Hold', sets: 3, reps: '60 sec', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Arms & Shoulders',
+          exercises: [
+            { name: 'Arnold Press', sets: 4, reps: '10-12 reps', rest: '60 sec' },
+            { name: 'Skull Crushers', sets: 3, reps: '12 reps', rest: '45 sec' },
+            { name: 'Preacher Curls', sets: 3, reps: '12 reps', rest: '45 sec' },
+            { name: 'Cable Lateral Raises', sets: 3, reps: '15 reps', rest: '30 sec' },
+            { name: 'Overhead Tricep Extension', sets: 3, reps: '12 reps', rest: '45 sec' },
+            { name: 'Concentration Curls', sets: 3, reps: '12 each', rest: '30 sec' },
+          ]
+        },
+      ],
+      'endurance': [
+        {
+          name: 'Long Cardio',
+          exercises: [
+            { name: 'Warm-up Jog', sets: 1, reps: '5 min', rest: '-' },
+            { name: 'Steady-State Run', sets: 1, reps: '30-45 min', rest: '-' },
+            { name: 'Cool Down Walk', sets: 1, reps: '5 min', rest: '-' },
+            { name: 'Post-Run Stretches', sets: 1, reps: '10 min', rest: '-' },
+          ]
+        },
+        {
+          name: 'Interval Training',
+          exercises: [
+            { name: 'Warm-up', sets: 1, reps: '5 min', rest: '-' },
+            { name: 'Sprint Intervals', sets: 8, reps: '30 sec fast', rest: '60 sec jog' },
+            { name: 'Hill Repeats', sets: 4, reps: '2 min climb', rest: 'walk down' },
+            { name: 'Cool Down', sets: 1, reps: '5 min', rest: '-' },
+          ]
+        },
+        {
+          name: 'Circuit Training',
+          exercises: [
+            { name: 'Rowing Machine', sets: 3, reps: '500m', rest: '60 sec' },
+            { name: 'Bike Sprints', sets: 3, reps: '2 min', rest: '60 sec' },
+            { name: 'Jump Rope', sets: 3, reps: '2 min', rest: '30 sec' },
+            { name: 'Stair Climber', sets: 2, reps: '5 min', rest: '60 sec' },
+          ]
+        },
+        {
+          name: 'Tempo Run',
+          exercises: [
+            { name: 'Easy Warm-up', sets: 1, reps: '10 min', rest: '-' },
+            { name: 'Tempo Pace Run', sets: 1, reps: '20-25 min', rest: '-' },
+            { name: 'Cool Down Jog', sets: 1, reps: '10 min', rest: '-' },
+            { name: 'Dynamic Stretches', sets: 1, reps: '5 min', rest: '-' },
+          ]
+        },
+        {
+          name: 'Cross Training',
+          exercises: [
+            { name: 'Swimming', sets: 1, reps: '20 min', rest: '-' },
+            { name: 'Cycling', sets: 1, reps: '30 min', rest: '-' },
+            { name: 'Elliptical', sets: 1, reps: '15 min', rest: '-' },
+            { name: 'Core Work', sets: 3, reps: '10 min', rest: '30 sec' },
+          ]
+        },
+      ],
+      'flexibility': [
+        {
+          name: 'Yoga Flow',
+          exercises: [
+            { name: 'Sun Salutation A', sets: 5, reps: 'flow', rest: '-' },
+            { name: 'Warrior Sequence', sets: 3, reps: '30 sec each', rest: '-' },
+            { name: 'Triangle Pose', sets: 2, reps: '30 sec each', rest: '-' },
+            { name: 'Pigeon Pose', sets: 2, reps: '60 sec each', rest: '-' },
+            { name: 'Seated Forward Fold', sets: 2, reps: '60 sec', rest: '-' },
+            { name: 'Savasana', sets: 1, reps: '5 min', rest: '-' },
+          ]
+        },
+        {
+          name: 'Dynamic Stretching',
+          exercises: [
+            { name: 'Leg Swings', sets: 2, reps: '15 each', rest: '-' },
+            { name: 'Arm Circles', sets: 2, reps: '20 each', rest: '-' },
+            { name: 'Hip Circles', sets: 2, reps: '15 each', rest: '-' },
+            { name: 'Walking Knee Hugs', sets: 2, reps: '10 each', rest: '-' },
+            { name: 'Lunge with Twist', sets: 2, reps: '10 each', rest: '-' },
+            { name: 'Inchworms', sets: 2, reps: '8 reps', rest: '-' },
+          ]
+        },
+        {
+          name: 'Mobility Work',
+          exercises: [
+            { name: '90/90 Hip Stretch', sets: 2, reps: '60 sec each', rest: '-' },
+            { name: 'Thread the Needle', sets: 2, reps: '30 sec each', rest: '-' },
+            { name: 'Cat-Cow Stretch', sets: 3, reps: '10 reps', rest: '-' },
+            { name: 'World\'s Greatest Stretch', sets: 2, reps: '5 each', rest: '-' },
+            { name: 'Foam Roll IT Band', sets: 2, reps: '60 sec each', rest: '-' },
+          ]
+        },
+        {
+          name: 'Recovery Session',
+          exercises: [
+            { name: 'Foam Rolling - Full Body', sets: 1, reps: '15 min', rest: '-' },
+            { name: 'Static Stretching', sets: 1, reps: '15 min', rest: '-' },
+            { name: 'Breathing Exercises', sets: 1, reps: '5 min', rest: '-' },
+            { name: 'Light Walking', sets: 1, reps: '10 min', rest: '-' },
+          ]
+        },
+        {
+          name: 'Balance Training',
+          exercises: [
+            { name: 'Single Leg Stand', sets: 3, reps: '30 sec each', rest: '15 sec' },
+            { name: 'Bosu Ball Squats', sets: 3, reps: '12 reps', rest: '30 sec' },
+            { name: 'Tree Pose', sets: 2, reps: '45 sec each', rest: '-' },
+            { name: 'Single Leg Deadlift', sets: 3, reps: '8 each', rest: '30 sec' },
+            { name: 'Stability Ball Plank', sets: 3, reps: '30 sec', rest: '30 sec' },
+          ]
+        },
+      ],
+      'tone': [
+        {
+          name: 'Total Body Toning',
+          exercises: [
+            { name: 'Goblet Squats', sets: 3, reps: '15 reps', rest: '45 sec' },
+            { name: 'Push-ups', sets: 3, reps: '12-15 reps', rest: '45 sec' },
+            { name: 'Dumbbell Rows', sets: 3, reps: '12 each', rest: '45 sec' },
+            { name: 'Reverse Lunges', sets: 3, reps: '12 each', rest: '45 sec' },
+            { name: 'Plank to Downdog', sets: 3, reps: '10 reps', rest: '30 sec' },
+            { name: 'Bicycle Crunches', sets: 3, reps: '20 each', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Lower Body Sculpt',
+          exercises: [
+            { name: 'Sumo Squats', sets: 3, reps: '15 reps', rest: '45 sec' },
+            { name: 'Glute Bridges', sets: 3, reps: '20 reps', rest: '30 sec' },
+            { name: 'Step-ups', sets: 3, reps: '12 each', rest: '45 sec' },
+            { name: 'Fire Hydrants', sets: 3, reps: '15 each', rest: '30 sec' },
+            { name: 'Calf Raises', sets: 3, reps: '20 reps', rest: '30 sec' },
+            { name: 'Wall Sit', sets: 3, reps: '45 sec', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Upper Body Definition',
+          exercises: [
+            { name: 'Tricep Dips', sets: 3, reps: '15 reps', rest: '45 sec' },
+            { name: 'Bicep Curls', sets: 3, reps: '15 reps', rest: '45 sec' },
+            { name: 'Shoulder Press', sets: 3, reps: '12 reps', rest: '45 sec' },
+            { name: 'Bent Over Rows', sets: 3, reps: '12 reps', rest: '45 sec' },
+            { name: 'Chest Flyes', sets: 3, reps: '12 reps', rest: '45 sec' },
+            { name: 'Lateral Raises', sets: 3, reps: '15 reps', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Core & Cardio',
+          exercises: [
+            { name: 'Mountain Climbers', sets: 3, reps: '30 sec', rest: '20 sec' },
+            { name: 'Plank Hold', sets: 3, reps: '45 sec', rest: '20 sec' },
+            { name: 'High Knees', sets: 3, reps: '30 sec', rest: '20 sec' },
+            { name: 'Dead Bug', sets: 3, reps: '10 each', rest: '20 sec' },
+            { name: 'Jumping Jacks', sets: 3, reps: '45 sec', rest: '15 sec' },
+            { name: 'V-ups', sets: 3, reps: '12 reps', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Full Body HIIT',
+          exercises: [
+            { name: 'Squat Jumps', sets: 3, reps: '30 sec', rest: '30 sec' },
+            { name: 'Push-up to Renegade Row', sets: 3, reps: '10 reps', rest: '30 sec' },
+            { name: 'Skaters', sets: 3, reps: '30 sec', rest: '20 sec' },
+            { name: 'Burpees', sets: 3, reps: '10 reps', rest: '45 sec' },
+            { name: 'Plank Jacks', sets: 3, reps: '30 sec', rest: '20 sec' },
+          ]
+        },
+      ],
+      'general': [
+        {
+          name: 'Cardio Mix',
+          exercises: [
+            { name: 'Warm-up Walk', sets: 1, reps: '5 min', rest: '-' },
+            { name: 'Jogging', sets: 1, reps: '15 min', rest: '-' },
+            { name: 'Jump Rope', sets: 3, reps: '2 min', rest: '30 sec' },
+            { name: 'Stair Climbing', sets: 2, reps: '5 min', rest: '60 sec' },
+            { name: 'Cool Down Stretch', sets: 1, reps: '5 min', rest: '-' },
+          ]
+        },
+        {
+          name: 'Strength Training',
+          exercises: [
+            { name: 'Squats', sets: 3, reps: '12 reps', rest: '60 sec' },
+            { name: 'Push-ups', sets: 3, reps: '10-15 reps', rest: '45 sec' },
+            { name: 'Dumbbell Rows', sets: 3, reps: '12 each', rest: '45 sec' },
+            { name: 'Lunges', sets: 3, reps: '10 each', rest: '45 sec' },
+            { name: 'Plank', sets: 3, reps: '30 sec', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Flexibility',
+          exercises: [
+            { name: 'Neck Stretches', sets: 2, reps: '30 sec each', rest: '-' },
+            { name: 'Shoulder Stretches', sets: 2, reps: '30 sec each', rest: '-' },
+            { name: 'Hamstring Stretch', sets: 2, reps: '45 sec each', rest: '-' },
+            { name: 'Hip Flexor Stretch', sets: 2, reps: '45 sec each', rest: '-' },
+            { name: 'Child\'s Pose', sets: 2, reps: '60 sec', rest: '-' },
+          ]
+        },
+        {
+          name: 'HIIT',
+          exercises: [
+            { name: 'Burpees', sets: 3, reps: '30 sec', rest: '30 sec' },
+            { name: 'Mountain Climbers', sets: 3, reps: '30 sec', rest: '20 sec' },
+            { name: 'Jump Squats', sets: 3, reps: '30 sec', rest: '30 sec' },
+            { name: 'High Knees', sets: 3, reps: '30 sec', rest: '20 sec' },
+            { name: 'Plank Jacks', sets: 3, reps: '30 sec', rest: '30 sec' },
+          ]
+        },
+        {
+          name: 'Active Recovery',
+          exercises: [
+            { name: 'Light Walking', sets: 1, reps: '20 min', rest: '-' },
+            { name: 'Foam Rolling', sets: 1, reps: '10 min', rest: '-' },
+            { name: 'Gentle Yoga', sets: 1, reps: '15 min', rest: '-' },
+            { name: 'Deep Breathing', sets: 1, reps: '5 min', rest: '-' },
+          ]
+        },
+      ],
     };
 
     const template = workoutTemplates[prefs.goal] || workoutTemplates['general'];
-    return template.slice(0, daysPerWeek).map((name, index) => ({
+    return template.slice(0, daysPerWeek).map((workout, index) => ({
       day: index + 1,
-      name: name,
+      name: workout.name,
       duration: '30-45 min',
       type: prefs.goal,
+      exercises: workout.exercises,
     }));
   };
 
   // Handle view plan
   const handleViewPlan = () => {
-    router.replace('/(tabs)/plans');
+    // Navigate to health connect screen before going to plans
+    router.replace('/health-connect');
   };
 
   // Handle skip
   const handleSkip = () => {
-    router.replace('/(tabs)');
+    // Navigate to health connect screen even if skipping plan
+    router.replace('/health-connect');
   };
 
   // Back button handler
@@ -331,7 +644,6 @@ export default function FitnessGoalsScreen() {
       </SafeAreaView>
     );
   }
-
   // RENDER: Step 2 - Experience Level
   if (currentStep === 'experience') {
     const experienceOptions = getExperienceOptions(selectedGoal?.title || 'fitness');
