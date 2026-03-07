@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -56,23 +56,29 @@ export default function MembershipScreen() {
   const { userId, profile } = useUserStore();
   const { theme } = useThemeStore();
   const [loading, setLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<'yearly' | 'monthly'>('yearly');
 
   const colors = theme.colors;
   const accent = theme.accentColors;
 
   const handleSubscribe = () => {
+    const planText = selectedPlan === 'yearly' ? '$39.99/year' : '$3.99/month';
     Alert.alert(
-      'Coming Soon!',
-      'In-App Purchases will be available soon through the App Store. Stay tuned for premium features!',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleNotifyMe = () => {
-    Alert.alert(
-      'We\'ll Notify You!',
-      'You\'ll be notified when Premium subscriptions become available. Thank you for your interest!',
-      [{ text: 'Great!' }]
+      'Start Free Trial',
+      `You selected the ${selectedPlan} plan (${planText}).\n\nYour 3-day free trial will begin. You won't be charged until the trial ends.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Start Trial', 
+          onPress: () => {
+            Alert.alert(
+              'Trial Started!',
+              'Your 3-day free trial has begun. Enjoy all premium features!',
+              [{ text: 'Great!' }]
+            );
+          }
+        }
+      ]
     );
   };
 
@@ -100,30 +106,87 @@ export default function MembershipScreen() {
           </LinearGradient>
         </View>
 
-        {/* Coming Soon Card */}
-        <View style={[styles.comingSoonCard, { backgroundColor: colors.background.card }]}>
-          <View style={[styles.comingSoonBadge, { backgroundColor: `${accent.primary}20` }]}>
-            <Ionicons name="time-outline" size={20} color={accent.primary} />
-            <Text style={[styles.comingSoonBadgeText, { color: accent.primary }]}>
-              Coming Soon
-            </Text>
-          </View>
+        {/* Pricing Options */}
+        <View style={[styles.pricingCard, { backgroundColor: colors.background.card }]}>
+          <Text style={[styles.pricingTitle, { color: colors.text.primary }]}>
+            Choose Your Plan
+          </Text>
           
-          <Text style={[styles.comingSoonTitle, { color: colors.text.primary }]}>
-            Premium Subscriptions
-          </Text>
-          <Text style={[styles.comingSoonDescription, { color: colors.text.secondary }]}>
-            We're working on bringing you an amazing premium experience with In-App Purchases. 
-            All premium features will be available soon!
-          </Text>
-
-          {/* Pricing Preview */}
-          <View style={[styles.pricingPreview, { borderColor: colors.border.secondary }]}>
-            <View style={styles.priceRow}>
-              <Text style={[styles.priceAmount, { color: colors.text.primary }]}>$29.99</Text>
-              <Text style={[styles.priceInterval, { color: colors.text.muted }]}>/year</Text>
+          {/* Yearly Plan */}
+          <TouchableOpacity 
+            style={[
+              styles.planOption,
+              { 
+                backgroundColor: colors.background.input,
+                borderColor: selectedPlan === 'yearly' ? accent.primary : colors.border.primary,
+                borderWidth: selectedPlan === 'yearly' ? 2 : 1,
+              }
+            ]}
+            onPress={() => setSelectedPlan('yearly')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.planLeft}>
+              <View style={[
+                styles.planRadio,
+                { borderColor: selectedPlan === 'yearly' ? accent.primary : colors.border.secondary }
+              ]}>
+                {selectedPlan === 'yearly' && (
+                  <View style={[styles.planRadioInner, { backgroundColor: accent.primary }]} />
+                )}
+              </View>
+              <View>
+                <Text style={[styles.planName, { color: colors.text.primary }]}>Yearly</Text>
+                <Text style={[styles.planSavings, { color: '#10B981' }]}>Save 17%</Text>
+              </View>
             </View>
-            <Text style={[styles.pricingNote, { color: colors.text.secondary }]}>
+            <View style={styles.planRight}>
+              <Text style={[styles.planPrice, { color: colors.text.primary }]}>$39.99</Text>
+              <Text style={[styles.planInterval, { color: colors.text.muted }]}>/year</Text>
+            </View>
+            {selectedPlan === 'yearly' && (
+              <View style={[styles.bestValueBadge, { backgroundColor: '#10B981' }]}>
+                <Text style={styles.bestValueText}>Best Value</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          
+          {/* Monthly Plan */}
+          <TouchableOpacity 
+            style={[
+              styles.planOption,
+              { 
+                backgroundColor: colors.background.input,
+                borderColor: selectedPlan === 'monthly' ? accent.primary : colors.border.primary,
+                borderWidth: selectedPlan === 'monthly' ? 2 : 1,
+              }
+            ]}
+            onPress={() => setSelectedPlan('monthly')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.planLeft}>
+              <View style={[
+                styles.planRadio,
+                { borderColor: selectedPlan === 'monthly' ? accent.primary : colors.border.secondary }
+              ]}>
+                {selectedPlan === 'monthly' && (
+                  <View style={[styles.planRadioInner, { backgroundColor: accent.primary }]} />
+                )}
+              </View>
+              <View>
+                <Text style={[styles.planName, { color: colors.text.primary }]}>Monthly</Text>
+                <Text style={[styles.planNote, { color: colors.text.muted }]}>Flexible billing</Text>
+              </View>
+            </View>
+            <View style={styles.planRight}>
+              <Text style={[styles.planPrice, { color: colors.text.primary }]}>$3.99</Text>
+              <Text style={[styles.planInterval, { color: colors.text.muted }]}>/month</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Free Trial Badge */}
+          <View style={[styles.trialBadge, { backgroundColor: `${accent.primary}15` }]}>
+            <Ionicons name="gift" size={20} color={accent.primary} />
+            <Text style={[styles.trialText, { color: accent.primary }]}>
               Includes 3-day free trial
             </Text>
           </View>
@@ -132,7 +195,7 @@ export default function MembershipScreen() {
         {/* Features List */}
         <View style={[styles.featuresCard, { backgroundColor: colors.background.card }]}>
           <Text style={[styles.featuresTitle, { color: colors.text.primary }]}>
-            Premium Features Preview
+            Premium Features
           </Text>
           {PREMIUM_FEATURES.map((feature: string, index: number) => (
             <View key={index} style={styles.featureRow}>
@@ -146,41 +209,48 @@ export default function MembershipScreen() {
               <Text style={[styles.featureText, { color: colors.text.primary }]}>
                 {feature}
               </Text>
-              <Ionicons name="lock-closed" size={16} color={colors.text.muted} />
+              <Ionicons name="checkmark-circle" size={18} color="#10B981" />
             </View>
           ))}
         </View>
 
-        {/* Notify Me Button */}
+        {/* Subscribe Button */}
         <TouchableOpacity 
           style={styles.subscribeButton}
-          onPress={handleNotifyMe}
+          onPress={handleSubscribe}
+          disabled={loading}
         >
           <LinearGradient
             colors={accent.gradient as [string, string]}
             style={styles.subscribeGradient}
           >
-            <Ionicons name="notifications" size={24} color="#fff" />
-            <Text style={styles.subscribeText}>
-              Notify Me When Available
-            </Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="diamond" size={24} color="#fff" />
+                <Text style={styles.subscribeText}>
+                  Start 3-Day Free Trial
+                </Text>
+              </>
+            )}
           </LinearGradient>
         </TouchableOpacity>
 
         <Text style={[styles.disclaimer, { color: colors.text.muted }]}>
           Premium subscriptions will be available through the App Store with secure In-App Purchases. 
-          Cancel anytime.
+          Cancel anytime. If cancelling after the 3-day free trial, continue the use of the app until expiration.
         </Text>
 
-        {/* Free Features Note */}
+        {/* Call to Action Note */}
         <View style={[styles.freeNoteCard, { backgroundColor: colors.background.card }]}>
-          <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+          <Ionicons name="rocket" size={24} color={accent.primary} />
           <View style={styles.freeNoteContent}>
             <Text style={[styles.freeNoteTitle, { color: colors.text.primary }]}>
-              Enjoy Free Features Now!
+              What are you waiting for?
             </Text>
             <Text style={[styles.freeNoteText, { color: colors.text.secondary }]}>
-              Track workouts, log meals, monitor hydration, and more - all available for free!
+              FitTrax+ is your one stop app for all your fitness needs. Try FitTrax+ now for FREE!!
             </Text>
           </View>
         </View>
@@ -206,19 +276,21 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   backHeaderTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   scrollContent: {
-    padding: 16,
+    padding: 20,
   },
   header: {
     marginBottom: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   headerGradient: {
-    borderRadius: 20,
     padding: 32,
     alignItems: 'center',
   },
@@ -226,66 +298,101 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: '#fff',
-    marginTop: 16,
+    marginTop: 12,
   },
   headerSubtitle: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.9)',
     marginTop: 4,
   },
-  comingSoonCard: {
+  pricingCard: {
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
-    alignItems: 'center',
   },
-  comingSoonBadge: {
+  pricingTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  planOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 8,
-    marginBottom: 16,
-  },
-  comingSoonBadgeText: {
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  comingSoonTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  comingSoonDescription: {
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  pricingPreview: {
-    borderWidth: 1,
-    borderRadius: 12,
+    justifyContent: 'space-between',
     padding: 16,
-    alignItems: 'center',
-    width: '100%',
+    borderRadius: 12,
+    marginBottom: 12,
+    position: 'relative',
   },
-  priceRow: {
+  planLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  planRadio: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  planRadioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  planName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  planSavings: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  planNote: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  planRight: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
-  priceAmount: {
-    fontSize: 36,
-    fontWeight: '800',
+  planPrice: {
+    fontSize: 24,
+    fontWeight: '700',
   },
-  priceInterval: {
-    fontSize: 16,
-    marginLeft: 4,
+  planInterval: {
+    fontSize: 14,
+    marginLeft: 2,
   },
-  pricingNote: {
-    fontSize: 13,
+  bestValueBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  bestValueText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  trialBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
     marginTop: 4,
+  },
+  trialText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   featuresCard: {
     borderRadius: 16,
@@ -293,35 +400,37 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   featuresTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     marginBottom: 16,
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
     gap: 12,
   },
   featureImageContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   featureImage: {
-    width: 44,
-    height: 44,
+    width: '100%',
+    height: '100%',
   },
   featureText: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
   },
   subscribeButton: {
-    marginTop: 8,
     borderRadius: 16,
     overflow: 'hidden',
+    marginBottom: 16,
   },
   subscribeGradient: {
     flexDirection: 'row',
@@ -338,16 +447,14 @@ const styles = StyleSheet.create({
   disclaimer: {
     fontSize: 12,
     textAlign: 'center',
-    marginTop: 16,
-    paddingHorizontal: 20,
     lineHeight: 18,
+    marginBottom: 20,
+    paddingHorizontal: 10,
   },
   freeNoteCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
     padding: 16,
-    marginTop: 20,
+    borderRadius: 12,
     gap: 12,
   },
   freeNoteContent: {
@@ -355,7 +462,7 @@ const styles = StyleSheet.create({
   },
   freeNoteTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: 4,
   },
   freeNoteText: {
