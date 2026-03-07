@@ -305,7 +305,7 @@ export default function ProfileScreen() {
 
   // Handle Health Connect
   const handleConnectHealth = () => {
-    router.push('/health-connect');
+    router.push({ pathname: '/health-connect', params: { fromSettings: 'true' } });
   };
 
   // Recording functions
@@ -1110,7 +1110,36 @@ export default function ProfileScreen() {
                   <Text style={[styles.viewTosButtonText, { color: accentColors.primary }]}>View Terms</Text>
                 </TouchableOpacity>
               </View>
-
+{/* Premium Subscription Section */}
+              <Text style={[styles.fieldLabel, { color: colors.text.secondary, marginTop: 24 }]}>
+                Subscription
+              </Text>
+              <TouchableOpacity 
+                style={[styles.tosStatusCard, { backgroundColor: colors.background.input, borderColor: colors.border.primary }]}
+                onPress={() => router.push('/membership')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.tosStatusHeader}>
+                  <Ionicons name="diamond" size={24} color="#8B5CF6" />
+                  <View style={styles.tosStatusInfo}>
+                    <Text style={[styles.tosStatusTitle, { color: colors.text.primary }]}>FitTrax+ Premium</Text>
+                    <View style={styles.tosAcceptedRow}>
+                      <Ionicons name="sparkles" size={16} color="#8B5CF6" />
+                      <Text style={[styles.tosStatusText, { color: '#8B5CF6' }]}>
+                        AI Workouts • Body Scan • More
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={[styles.viewTosButton, { borderColor: '#8B5CF6' }]}
+                  onPress={() => router.push('/membership')}
+                >
+                  <Text style={[styles.viewTosButtonText, { color: '#8B5CF6' }]}>
+                    View Plans
+                  </Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
               {/* Health Connect Section */}
               <Text style={[styles.fieldLabel, { color: colors.text.secondary, marginTop: 24 }]}>
                 Health & Fitness
