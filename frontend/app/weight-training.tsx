@@ -123,13 +123,6 @@ export default function WeightTrainingScreen() {
   // Inline editing state (replaces nested modal)
   const [expandedExerciseKey, setExpandedExerciseKey] = useState<string | null>(null);
   
-  // Workout logging state
-  const [workoutName, setWorkoutName] = useState('');
-  const [workoutExercises, setWorkoutExercises] = useState<any[]>([]);
-  const [currentExercise, setCurrentExercise] = useState('');
-  const [currentSets, setCurrentSets] = useState<any[]>([]);
-  const [savingWorkout, setSavingWorkout] = useState(false);
-
   // Edit exercise state
   const [editExName, setEditExName] = useState('');
   const [editExSets, setEditExSets] = useState('');
@@ -277,38 +270,6 @@ export default function WeightTrainingScreen() {
     setShowProgramModal(true);
   };
 
-  const startWorkout = (day: any) => {
-    setSelectedDay(day);
-    setWorkoutName(day.name);
-    // Pre-populate exercises from the day's workout plan
-    const prefilledExercises = day.exercises?.map((ex: any) => {
-      const numSets = parseInt(ex.sets) || 3;
-      const repsStr = ex.reps?.toString() || '10';
-      const repsValue = repsStr.includes('-') ? repsStr.split('-')[0] : repsStr;
-      
-      return {
-        exercise_name: ex.name,
-        sets: Array.from({ length: numSets }, (_, i) => ({
-          set_number: i + 1,
-          weight: '',
-          reps: repsValue,
-          rpe: ''
-        }))
-      };
-    }) || [];
-    setWorkoutExercises(prefilledExercises);
-    setCurrentSets([]);
-    setCurrentExercise('');
-    setShowWorkoutModal(true);
-  };
-
-  const startFullDayWorkout = (day: any) => {
-    setShowProgramModal(false);
-    setTimeout(() => {
-      startWorkout(day);
-    }, 300);
-  };
-
   const openExerciseLibrary = (muscleGroup: string) => {
     setSelectedMuscleGroup(muscleGroup);
     setShowExerciseLibraryModal(true);
@@ -320,7 +281,7 @@ export default function WeightTrainingScreen() {
   };
 
   const selectExerciseFromLibrary = (exerciseName: string) => {
-    setCurrentExercise(exerciseName);
+    // No longer needed since workout logging is removed
     closeExerciseLibrary();
   };
 
@@ -372,79 +333,6 @@ export default function WeightTrainingScreen() {
     setSelectedExerciseDetail(null);
     setExercisePhaseImages([]);
     setCurrentPhaseIndex(0);
-  };
-
-  const addSet = () => {
-    setCurrentSets([...currentSets, { weight: '', reps: '', rpe: '' }]);
-  };
-
-  const updateSet = (index: number, field: string, value: string) => {
-    const updated = [...currentSets];
-    updated[index][field] = value;
-    setCurrentSets(updated);
-  };
-
-  const removeSet = (index: number) => {
-    setCurrentSets(currentSets.filter((_, i) => i !== index));
-  };
-
-  const addExerciseToWorkout = () => {
-    if (!currentExercise || currentSets.length === 0) {
-      Alert.alert('Missing Info', 'Please enter exercise name and at least one set');
-      return;
-    }
-
-    const validSets = currentSets
-      .filter(s => s.weight && s.reps)
-      .map((s, i) => ({
-        set_number: i + 1,
-        weight: parseFloat(s.weight),
-        reps: parseInt(s.reps),
-        rpe: s.rpe ? parseInt(s.rpe) : null
-      }));
-
-    if (validSets.length === 0) {
-      Alert.alert('Invalid Sets', 'Please enter weight and reps for at least one set');
-      return;
-    }
-
-    setWorkoutExercises([
-      ...workoutExercises,
-      {
-        exercise_name: currentExercise,
-        sets: validSets
-      }
-    ]);
-    setCurrentExercise('');
-    setCurrentSets([]);
-  };
-
-  // Update exercise sets in prefilled workout
-  const updateExerciseSet = (exerciseIndex: number, setIndex: number, field: string, value: string) => {
-    const updated = [...workoutExercises];
-    updated[exerciseIndex].sets[setIndex][field] = value;
-    setWorkoutExercises(updated);
-  };
-
-  // Remove exercise from workout
-  const removeExerciseFromWorkout = (index: number) => {
-    setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
-  };
-
-  // Move exercise up in workout
-  const moveExerciseUp = (index: number) => {
-    if (index === 0) return;
-    const updated = [...workoutExercises];
-    [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
-    setWorkoutExercises(updated);
-  };
-
-  // Move exercise down in workout
-  const moveExerciseDown = (index: number) => {
-    if (index === workoutExercises.length - 1) return;
-    const updated = [...workoutExercises];
-    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
-    setWorkoutExercises(updated);
   };
 
   // Edit exercise in program - using inline expansion instead of nested modal
@@ -527,67 +415,6 @@ export default function WeightTrainingScreen() {
     );
   };
 
-  const saveWorkout = async () => {
-    // Filter exercises that have at least one completed set and convert to proper types
-    const completedExercises = workoutExercises
-      .map(ex => ({
-        ...ex,
-        sets: ex.sets
-          .filter((s: any) => s.weight && s.reps)
-          .map((s: any, idx: number) => ({
-            set_number: idx + 1,
-            weight: parseFloat(s.weight) || 0,
-            reps: parseInt(s.reps) || 0,
-            rpe: s.rpe ? parseInt(s.rpe) : null
-          }))
-      }))
-      .filter(ex => ex.sets.length > 0);
-
-    if (completedExercises.length === 0) {
-      Alert.alert('No Exercises', 'Please complete at least one set with weight and reps');
-      return;
-    }
-
-    setSavingWorkout(true);
-    try {
-      const response = await axios.post(`${API_URL}/api/weight-training/log`, {
-        workout_id: `wt_${Date.now()}`,
-        user_id: userId,
-        workout_name: workoutName || 'Weight Training',
-        exercises: completedExercises,
-        duration_minutes: 60,
-        notes: ''
-      });
-
-      const { new_prs, total_volume } = response.data;
-      
-      let message = `Total volume: ${total_volume.toLocaleString()} lbs`;
-      if (new_prs && new_prs.length > 0) {
-        message += `\n\n🏆 NEW PRs:\n${new_prs.map((pr: any) => `${pr.exercise}: ${pr.weight}lbs x ${pr.reps}`).join('\n')}`;
-      }
-
-      // Show success and offer to view in Plans
-      Alert.alert(
-        '💪 Workout Complete!', 
-        message,
-        [
-          { text: 'OK', style: 'cancel' },
-          { 
-            text: 'View in Plans', 
-            onPress: () => router.push('/(tabs)/plans')
-          }
-        ]
-      );
-      setShowWorkoutModal(false);
-      loadData();
-    } catch (error: any) {
-      console.error('Save workout error:', error);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to save workout');
-    } finally {
-      setSavingWorkout(false);
-    }
-  };
-
   // Delete a workout from history
   const confirmDeleteWorkout = (workout: any) => {
     Alert.alert(
@@ -614,14 +441,6 @@ export default function WeightTrainingScreen() {
       console.error('Delete workout error:', error);
       Alert.alert('Error', 'Failed to delete workout');
     }
-  };
-
-  const quickLogWorkout = () => {
-    setWorkoutName('Quick Workout');
-    setWorkoutExercises([]);
-    setCurrentSets([]);
-    setSelectedDay(null);
-    setShowWorkoutModal(true);
   };
 
   const getLevelColor = (level: string) => {
@@ -687,21 +506,6 @@ export default function WeightTrainingScreen() {
           </View>
           <View style={{ width: 40 }} />
         </View>
-
-        {/* Quick Log Button */}
-        <TouchableOpacity onPress={quickLogWorkout}>
-          <LinearGradient
-            colors={['#7C3AED', '#5B21B6']}
-            style={styles.quickLogCard}
-          >
-            <MaterialCommunityIcons name="dumbbell" size={40} color="#fff" />
-            <View style={styles.quickLogText}>
-              <Text style={styles.quickLogTitle}>Log Workout</Text>
-              <Text style={styles.quickLogSubtitle}>Track your sets, reps & weight</Text>
-            </View>
-            <Ionicons name="add-circle" size={32} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
 
         {/* My Fitness Goals Section */}
         <View style={styles.section}>
@@ -802,7 +606,6 @@ export default function WeightTrainingScreen() {
             </ScrollView>
           </View>
         )}
-
         {/* Training Programs */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Training Programs</Text>
@@ -1171,13 +974,6 @@ export default function WeightTrainingScreen() {
                         <Text style={styles.dayName}>{day.name}</Text>
                         <Text style={styles.dayFocus}>Focus: {day.focus?.join(', ')}</Text>
                       </View>
-                      <TouchableOpacity
-                        style={styles.startAllBtn}
-                        onPress={() => startFullDayWorkout(day)}
-                      >
-                        <Ionicons name="play" size={18} color="#fff" />
-                        <Text style={styles.startAllBtnText}>Start All</Text>
-                      </TouchableOpacity>
                     </View>
                     
                     {day.exercises?.map((ex: any, exIndex: number) => {
@@ -1302,167 +1098,6 @@ export default function WeightTrainingScreen() {
         </View>
       </Modal>
 
-      {/* Workout Logging Modal */}
-      <Modal
-        visible={showWorkoutModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowWorkoutModal(false)}
-      >
-        <View style={styles.fullScreenModalContainer}>
-          <View style={styles.fullScreenModalContent}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setShowWorkoutModal(false)}>
-                <Ionicons name="close" size={28} color={theme.colors.text.primary} />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>Log Workout</Text>
-              <TouchableOpacity onPress={saveWorkout} disabled={savingWorkout}>
-                {savingWorkout ? (
-                  <ActivityIndicator size="small" color={theme.accentColors.primary} />
-                ) : (
-                  <Text style={styles.saveBtn}>Save</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.workoutScrollView} contentContainerStyle={styles.workoutScrollContent}>
-              {/* Workout Name */}
-              <Text style={styles.inputLabel}>Workout Name</Text>
-              <TextInput
-                style={styles.textInput}
-                value={workoutName}
-                onChangeText={setWorkoutName}
-                placeholder="e.g., Push Day"
-                placeholderTextColor={theme.colors.text.muted}
-              />
-
-              {/* Pre-filled Exercises from Program */}
-              {workoutExercises.length > 0 && (
-                <View style={styles.prefilledSection}>
-                  <Text style={styles.prefilledTitle}>
-                    Exercises ({workoutExercises.length})
-                  </Text>
-                  <Text style={styles.prefilledHint}>
-                    Fill in your weights • Use arrows to reorder
-                  </Text>
-                  
-                  {workoutExercises.map((ex, exIndex) => (
-                    <View key={exIndex} style={styles.prefilledExercise}>
-                      <View style={styles.prefilledExHeader}>
-                        <View style={styles.exerciseReorderBtns}>
-                          <TouchableOpacity 
-                            onPress={() => moveExerciseUp(exIndex)}
-                            style={[styles.smallReorderBtn, exIndex === 0 && styles.reorderBtnDisabled]}
-                          >
-                            <Ionicons name="chevron-up" size={16} color={exIndex === 0 ? theme.colors.text.muted : '#7C3AED'} />
-                          </TouchableOpacity>
-                          <TouchableOpacity 
-                            onPress={() => moveExerciseDown(exIndex)}
-                            style={[styles.smallReorderBtn, exIndex === workoutExercises.length - 1 && styles.reorderBtnDisabled]}
-                          >
-                            <Ionicons name="chevron-down" size={16} color={exIndex === workoutExercises.length - 1 ? theme.colors.text.muted : '#7C3AED'} />
-                          </TouchableOpacity>
-                        </View>
-                        <Text style={styles.prefilledExName}>{ex.exercise_name}</Text>
-                        <TouchableOpacity onPress={() => removeExerciseFromWorkout(exIndex)}>
-                          <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                        </TouchableOpacity>
-                      </View>
-                      
-                      {ex.sets.map((set: any, setIndex: number) => (
-                        <View key={setIndex} style={styles.prefilledSet}>
-                          <Text style={styles.prefilledSetNum}>Set {set.set_number}</Text>
-                          <TextInput
-                            style={styles.prefilledInput}
-                            value={set.weight?.toString() || ''}
-                            onChangeText={(v) => updateExerciseSet(exIndex, setIndex, 'weight', v)}
-                            placeholder="Weight"
-                            placeholderTextColor={theme.colors.text.muted}
-                            keyboardType="numeric"
-                          />
-                          <Text style={styles.prefilledX}>×</Text>
-                          <TextInput
-                            style={styles.prefilledInput}
-                            value={set.reps?.toString() || ''}
-                            onChangeText={(v) => updateExerciseSet(exIndex, setIndex, 'reps', v)}
-                            placeholder="Reps"
-                            placeholderTextColor={theme.colors.text.muted}
-                            keyboardType="numeric"
-                          />
-                        </View>
-                      ))}
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* Add New Exercise Section */}
-              <View style={styles.addExerciseSection}>
-                <Text style={styles.inputLabel}>Add New Exercise</Text>
-                <View style={styles.exerciseInputRow}>
-                  <TextInput
-                    style={[styles.textInput, { flex: 1 }]}
-                    value={currentExercise}
-                    onChangeText={setCurrentExercise}
-                    placeholder="Exercise name"
-                    placeholderTextColor={theme.colors.text.muted}
-                  />
-                  <TouchableOpacity 
-                    style={styles.browseBtn}
-                    onPress={() => openExerciseLibrary('chest')}
-                  >
-                    <Ionicons name="search" size={20} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Sets */}
-                <View style={styles.setsHeader}>
-                  <Text style={styles.setsLabel}>Sets</Text>
-                  <TouchableOpacity style={styles.addSetBtn} onPress={addSet}>
-                    <Ionicons name="add" size={20} color="#fff" />
-                    <Text style={styles.addSetBtnText}>Add Set</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {currentSets.map((set, index) => (
-                  <View key={index} style={styles.setRow}>
-                    <Text style={styles.setNumber}>#{index + 1}</Text>
-                    <TextInput
-                      style={styles.setInput}
-                      value={set.weight}
-                      onChangeText={(v) => updateSet(index, 'weight', v)}
-                      placeholder="Weight"
-                      placeholderTextColor={theme.colors.text.muted}
-                      keyboardType="numeric"
-                    />
-                    <Text style={styles.setX}>×</Text>
-                    <TextInput
-                      style={styles.setInput}
-                      value={set.reps}
-                      onChangeText={(v) => updateSet(index, 'reps', v)}
-                      placeholder="Reps"
-                      placeholderTextColor={theme.colors.text.muted}
-                      keyboardType="numeric"
-                    />
-                    <TouchableOpacity onPress={() => removeSet(index)}>
-                      <Ionicons name="close-circle" size={24} color={theme.colors.text.muted} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-
-                {currentExercise && currentSets.length > 0 && (
-                  <TouchableOpacity style={styles.addExerciseBtn} onPress={addExerciseToWorkout}>
-                    <Text style={styles.addExerciseBtnText}>+ Add to Workout</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <View style={{ height: 100 }} />
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
       {/* Past Workout Detail Modal */}
       <Modal
         visible={showPastWorkoutModal}
@@ -1566,8 +1201,7 @@ export default function WeightTrainingScreen() {
           )}
         </SafeAreaView>
       </Modal>
-
-      {/* Exercise Detail Modal */}
+            {/* Exercise Detail Modal */}
       <Modal
         visible={showExerciseDetailModal}
         animationType="slide"
@@ -1585,17 +1219,7 @@ export default function WeightTrainingScreen() {
             <Text style={[styles.exerciseDetailTitle, { color: theme.colors.text.primary }]}>
               Exercise Details
             </Text>
-            <TouchableOpacity 
-              onPress={() => {
-                if (selectedExerciseDetail) {
-                  setCurrentExercise(selectedExerciseDetail.name);
-                  closeExerciseDetail();
-                }
-              }}
-              style={styles.addToWorkoutBtn}
-            >
-              <Text style={styles.addToWorkoutBtnText}>Add</Text>
-            </TouchableOpacity>
+            <View style={{ width: 32 }} />
           </View>
 
           {selectedExerciseDetail && (
@@ -1748,7 +1372,7 @@ export default function WeightTrainingScreen() {
                       <Text style={styles.instructionNumberText}>2</Text>
                     </View>
                     <Text style={[styles.instructionText, { color: theme.colors.text.secondary }]}>
-                      Engage your core and maintain a neutral spine
+                      Engage your core and maintain a neutral spine throughout the movement
                     </Text>
                   </View>
                   <View style={styles.instructionItem}>
@@ -1756,7 +1380,7 @@ export default function WeightTrainingScreen() {
                       <Text style={styles.instructionNumberText}>3</Text>
                     </View>
                     <Text style={[styles.instructionText, { color: theme.colors.text.secondary }]}>
-                      Perform the movement with controlled tempo
+                      Perform the movement with control, focusing on the target muscle contraction
                     </Text>
                   </View>
                   <View style={styles.instructionItem}>
@@ -1764,38 +1388,11 @@ export default function WeightTrainingScreen() {
                       <Text style={styles.instructionNumberText}>4</Text>
                     </View>
                     <Text style={[styles.instructionText, { color: theme.colors.text.secondary }]}>
-                      Focus on the mind-muscle connection with target muscles
+                      Return to starting position slowly, maintaining tension on the muscle
                     </Text>
                   </View>
                 </View>
               </View>
-
-              {/* Tips */}
-              <View style={[styles.exerciseDetailSection, { backgroundColor: '#FEF3C7' }]}>
-                <Text style={[styles.exerciseDetailSectionTitle, { color: '#92400E' }]}>
-                  💡 Pro Tips
-                </Text>
-                <Text style={{ color: '#78350F', fontSize: 14, lineHeight: 20 }}>
-                  • Start with lighter weight to perfect your form{'\n'}
-                  • Control the negative (lowering) phase{'\n'}
-                  • Breathe out on exertion, in on recovery{'\n'}
-                  • Rest 60-90 seconds between sets for hypertrophy
-                </Text>
-              </View>
-
-              {/* Add to Workout Button */}
-              <TouchableOpacity 
-                style={styles.addToWorkoutFullBtn}
-                onPress={() => {
-                  if (selectedExerciseDetail) {
-                    setCurrentExercise(selectedExerciseDetail.name);
-                    closeExerciseDetail();
-                  }
-                }}
-              >
-                <Ionicons name="add-circle" size={24} color="#fff" />
-                <Text style={styles.addToWorkoutFullBtnText}>Add to Current Workout</Text>
-              </TouchableOpacity>
 
               <View style={{ height: 40 }} />
             </ScrollView>
@@ -1818,6 +1415,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
@@ -1825,45 +1423,23 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
+    padding: 4,
+    marginRight: 12,
   },
   headerText: {
     flex: 1,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     color: theme.colors.text.primary,
-    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
-    color: theme.colors.text.secondary,
-  },
-  quickLogCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
-    gap: 16,
-  },
-  quickLogText: {
-    flex: 1,
-  },
-  quickLogTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  quickLogSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
+    color: theme.colors.text.secondary,
+    marginTop: 2,
   },
-  // Fitness Goals Styles
+  // Goals Section
   goalsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1879,9 +1455,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     gap: 4,
   },
   adjustGoalsBtnText: {
-    color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+    color: '#fff',
   },
   goalsGrid: {
     flexDirection: 'row',
@@ -1918,82 +1494,114 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
     gap: 4,
+    marginTop: 12,
+    padding: 8,
   },
   resetGoalsBtnText: {
     fontSize: 12,
-    fontWeight: '500',
   },
+  // Stats
   statsGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
   },
   statCard: {
     flex: 1,
+    minWidth: '22%',
     backgroundColor: theme.colors.background.card,
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: '#7C3AED',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.colors.text.secondary,
     marginTop: 4,
   },
+  // Section
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: theme.colors.text.primary,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   sectionSubtitle: {
-    fontSize: 14,
-    color: theme.colors.text.secondary,
-    marginBottom: 16,
+    fontSize: 13,
+    color: theme.colors.text.muted,
+    marginTop: -8,
+    marginBottom: 12,
   },
+  // Subsection
+  subsection: {
+    marginBottom: 20,
+  },
+  subsectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  subsectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+  },
+  subsectionBadge: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#EF4444',
+    backgroundColor: '#EF444420',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  // PRs
   prsRow: {
     flexDirection: 'row',
     gap: 12,
-    paddingRight: 16,
   },
   prCard: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 16,
-    padding: 16,
-    minWidth: 140,
-    alignItems: 'center',
+    backgroundColor: theme.colors.background.card,
+    borderRadius: 12,
+    padding: 14,
+    width: 140,
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
   },
   prExercise: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#1F2937',
-    textAlign: 'center',
-    marginBottom: 8,
+    color: theme.colors.text.primary,
+    marginBottom: 6,
   },
   prWeight: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#D97706',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#F59E0B',
   },
   prReps: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 13,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
   },
   pr1rm: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 4,
+    fontSize: 11,
+    color: theme.colors.text.muted,
+    marginTop: 6,
   },
+  // Programs
   programCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2011,17 +1619,17 @@ const createStyles = (theme: any) => StyleSheet.create({
   programIcon: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
   programInfo: {
     flex: 1,
   },
   programName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
@@ -2038,55 +1646,29 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
+    borderRadius: 8,
     gap: 4,
   },
   programBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: '600',
     color: theme.colors.text.secondary,
   },
-  // Subsection styles
-  subsection: {
-    marginBottom: 20,
-  },
-  subsectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  subsectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.text.primary,
-    flex: 1,
-  },
-  subsectionBadge: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#EF4444',
-    backgroundColor: '#EF444420',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  // Functional Training Card Styles
+  // Functional Cards
   functionalCard: {
-    height: 180,
     borderRadius: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     overflow: 'hidden',
-    backgroundColor: theme.colors.background.card,
+    height: 200,
   },
   functionalImage: {
     width: '100%',
     height: '100%',
-    position: 'absolute',
   },
   functionalOverlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
@@ -2104,8 +1686,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: 8,
   },
   typeBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#fff',
   },
   functionalName: {
@@ -2117,7 +1699,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   functionalDescription: {
     fontSize: 13,
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   functionalMeta: {
     flexDirection: 'row',
@@ -2131,19 +1713,17 @@ const createStyles = (theme: any) => StyleSheet.create({
   functionalMetaText: {
     fontSize: 12,
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  // Functional Training Modal Styles
   functionalInfoCard: {
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    padding: 20,
   },
   functionalInfoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 16,
     textAlign: 'center',
+    marginBottom: 16,
   },
   functionalInfoRow: {
     flexDirection: 'row',
@@ -2154,18 +1734,19 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   functionalInfoLabel: {
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
   },
   functionalInfoValue: {
     fontSize: 18,
     fontWeight: '700',
-    marginTop: 2,
+    marginTop: 4,
   },
+  // Stations
   stationCard: {
     flexDirection: 'row',
     borderRadius: 16,
-    marginBottom: 12,
     overflow: 'hidden',
+    marginBottom: 12,
   },
   stationImage: {
     width: 100,
@@ -2174,12 +1755,11 @@ const createStyles = (theme: any) => StyleSheet.create({
   stationContent: {
     flex: 1,
     padding: 12,
-    justifyContent: 'center',
   },
   stationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   stationNumber: {
     width: 24,
@@ -2190,17 +1770,17 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginRight: 8,
   },
   stationNumberText: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#fff',
-    fontWeight: '800',
-    fontSize: 12,
   },
   stationName: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
     flex: 1,
   },
   stationDescription: {
-    fontSize: 13,
+    fontSize: 12,
     marginBottom: 8,
   },
   stationTiming: {
@@ -2214,165 +1794,137 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   stationTimingText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   startWorkoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 12,
     padding: 16,
-    borderRadius: 16,
-    marginTop: 16,
     gap: 8,
+    marginTop: 16,
   },
   startWorkoutButtonText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+    color: '#fff',
   },
+  // Muscle Groups
   muscleGroups: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   muscleCard: {
-    width: '30%',
-    height: 120,
+    width: (SCREEN_WIDTH - 42) / 2,
+    height: 100,
     borderRadius: 12,
     overflow: 'hidden',
-    position: 'relative',
   },
   muscleImage: {
     width: '100%',
     height: '100%',
-    position: 'absolute',
   },
   muscleOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 8,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   muscleName: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 2,
   },
   muscleCount: {
-    fontSize: 11,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
   },
+  // History
   historyCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.background.card,
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    padding: 14,
+    marginBottom: 10,
   },
   historyIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#7C3AED20',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
   historyInfo: {
     flex: 1,
   },
   historyName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: theme.colors.text.primary,
   },
   historyMeta: {
     fontSize: 13,
-    color: theme.colors.text.secondary,
+    marginTop: 4,
   },
   historyDate: {
     fontSize: 12,
-    color: theme.colors.text.muted,
   },
   historyHint: {
     fontSize: 12,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   historyDeleteBtn: {
     padding: 8,
     marginLeft: 8,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  fullScreenModalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  fullScreenModalContent: {
-    flex: 1,
-    backgroundColor: theme.colors.background.primary,
-    marginTop: 60,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  exerciseLibraryModal: {
-    backgroundColor: theme.colors.background.primary,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '80%',
-    minHeight: '50%',
-  },
+  // Modal
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.primary,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: theme.colors.text.primary,
   },
-  cancelBtn: {
-    fontSize: 16,
-    color: theme.colors.text.secondary,
+  fullScreenModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
-  saveBtn: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.accentColors.primary,
+  fullScreenModalContent: {
+    backgroundColor: theme.colors.background.primary,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+    minHeight: '60%',
   },
   programScrollView: {
     flex: 1,
   },
   programScrollContent: {
     padding: 16,
-  },
-  workoutScrollView: {
-    flex: 1,
-  },
-  workoutScrollContent: {
-    padding: 16,
+    paddingBottom: 40,
   },
   programDetailDesc: {
-    fontSize: 16,
+    fontSize: 15,
     color: theme.colors.text.secondary,
-    marginBottom: 16,
+    lineHeight: 22,
+    marginBottom: 12,
   },
   programDetailMeta: {
     flexDirection: 'row',
     gap: 16,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   programDetailFreq: {
     fontSize: 14,
@@ -2668,7 +2220,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   setX: {
     fontSize: 16,
+    fontWeight: '600',
     color: theme.colors.text.secondary,
+    width: 24,
+    textAlign: 'center',
   },
   addExerciseBtn: {
     backgroundColor: '#7C3AED',
@@ -2880,17 +2435,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  addToWorkoutBtn: {
-    backgroundColor: '#7C3AED',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  addToWorkoutBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   exerciseDetailContent: {
     flex: 1,
     padding: 16,
@@ -2975,21 +2519,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#7C3AED',
-  },
-  addToWorkoutFullBtn: {
-    backgroundColor: '#7C3AED',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginTop: 8,
-  },
-  addToWorkoutFullBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   // Inline Edit Styles
   inlineEditForm: {
