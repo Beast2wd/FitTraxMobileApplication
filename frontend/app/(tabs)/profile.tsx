@@ -218,6 +218,9 @@ export default function ProfileScreen() {
   const [useCustomRecording, setUseCustomRecording] = useState(false);
   const recordingTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
+  // Health Connect state
+  const [healthConnectStatus, setHealthConnectStatus] = useState<any>(null);
+
   const [formData, setFormData] = useState({
     name: profile?.name || '',
     age: profile?.age || 30,
@@ -284,6 +287,26 @@ export default function ProfileScreen() {
     };
     loadVoiceSettings();
   }, []);
+
+  // Load Health Connect status
+  useEffect(() => {
+    const loadHealthConnectStatus = async () => {
+      try {
+        const status = await AsyncStorage.getItem('@fittrax_health_connect_status');
+        if (status) {
+          setHealthConnectStatus(JSON.parse(status));
+        }
+      } catch (error) {
+        console.log('Error loading health connect status:', error);
+      }
+    };
+    loadHealthConnectStatus();
+  }, []);
+
+  // Handle Health Connect
+  const handleConnectHealth = () => {
+    router.push('/health-connect');
+  };
 
   // Recording functions
   const startRecording = async () => {
@@ -355,8 +378,7 @@ export default function ProfileScreen() {
       console.log('Error stopping recording:', error);
     }
   };
-
-  const playCustomRecording = async () => {
+    const playCustomRecording = async () => {
     try {
       const uri = await AsyncStorage.getItem('customVoiceRecordingUri');
       if (uri) {
@@ -724,8 +746,7 @@ export default function ProfileScreen() {
                   <Text style={styles.saveButtonText}>Save Profile</Text>
                 )}
               </TouchableOpacity>
-
-              {profile && (
+                            {profile && (
                 <View style={[styles.calorieGoalSection, { backgroundColor: colors.background.secondary }]}>
                   <Text style={[styles.calorieGoalTitle, { color: colors.text.primary }]}>Daily Calorie Goal</Text>
                   
@@ -1089,14 +1110,54 @@ export default function ProfileScreen() {
                   <Text style={[styles.viewTosButtonText, { color: accentColors.primary }]}>View Terms</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Health Connect Section */}
+              <Text style={[styles.fieldLabel, { color: colors.text.secondary, marginTop: 24 }]}>
+                Health & Fitness
+              </Text>
+              <View style={[styles.tosStatusCard, { backgroundColor: colors.background.input, borderColor: colors.border.primary }]}>
+                <View style={styles.tosStatusHeader}>
+                  <Ionicons name="heart" size={24} color="#FF2D55" />
+                  <View style={styles.tosStatusInfo}>
+                    <Text style={[styles.tosStatusTitle, { color: colors.text.primary }]}>Apple Health</Text>
+                    {healthConnectStatus?.connected && healthConnectStatus?.method === 'apple_health' ? (
+                      <View style={styles.tosAcceptedRow}>
+                        <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                        <Text style={[styles.tosStatusText, { color: '#22C55E' }]}>
+                          Connected
+                        </Text>
+                      </View>
+                    ) : healthConnectStatus?.connected && healthConnectStatus?.method === 'manual' ? (
+                      <View style={styles.tosAcceptedRow}>
+                        <Ionicons name="create-outline" size={16} color="#3B82F6" />
+                        <Text style={[styles.tosStatusText, { color: '#3B82F6' }]}>
+                          Manual tracking enabled
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.tosAcceptedRow}>
+                        <Ionicons name="alert-circle" size={16} color="#F59E0B" />
+                        <Text style={[styles.tosStatusText, { color: '#F59E0B' }]}>Not connected</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={[styles.viewTosButton, { borderColor: '#FF2D55' }]}
+                  onPress={handleConnectHealth}
+                >
+                  <Text style={[styles.viewTosButtonText, { color: '#FF2D55' }]}>
+                    {healthConnectStatus?.connected ? 'Manage' : 'Connect'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
           <View style={{ height: 100 }} />
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* Picker Modals */}
+            {/* Picker Modals */}
       <PickerModal
         visible={ageModalVisible}
         onClose={() => setAgeModalVisible(false)}
