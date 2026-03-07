@@ -6416,10 +6416,119 @@ async def get_health_connection_status(user_id: str):
         logger.error(f"Error getting health connection status: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class HealthPreferences(BaseModel):
+    user_id: str
+    method: str  # 'apple_health', 'manual', 'skipped'
+    auto_sync_enabled: bool = True
+    sync_steps: bool = True
+    sync_calories: bool = True
+    sync_workouts: bool = True
+    sync_heart_rate: bool = True
+
+@api_router.post("/health/preferences")
+async def save_health_preferences(data: HealthPreferences):
+    """Save user's health tracking preferences"""
+    try:
+        preferences = {
+            "user_id": data.user_id,
+            "method": data.method,
+            "auto_sync_enabled": data.auto_sync_enabled,
+            "sync_steps": data.sync_steps,
+            "sync_calories": data.sync_calories,
+            "sync_workouts": data.sync_workouts,
+            "sync_heart_rate": data.sync_heart_rate,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        await db.health_preferences.update_one(
+            {"user_id": data.user_id},
+            {"$set": preferences},
+            upsert=True
+        )
+        
+        return {
+            "success": True,
+            "message": "Health preferences saved",
+            "preferences": preferences
+        }
+    except Exception as e:
+        logger.error(f"Error saving health preferences: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/health/preferences/{user_id}")
+async def get_health_preferences(user_id: str):
+    """Get user's health tracking preferences"""
+    try:
+        preferences = await db.health_preferences.find_one({"user_id": user_id})
+        
+        if not preferences:
+            return {
+                "found": False,
+                "preferences": {
+                    "method": None,
+                    "auto_sync_enabled": True,
+                    "sync_steps": True,
+                    "sync_calories": True,
+                    "sync_workouts": True,
+                    "sync_heart_rate": True
+                }
+            }
+        
+        # Remove MongoDB _id field
+        preferences.pop("_id", None)
+        
+        return {
+            "found": True,
+            "preferences": preferences
+        }
+    except Exception as e:
+        logger.error(f"Error getting health preferences: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/health/today/{user_id}")
+async def get_today_health_data(user_id: str):
+    """Get today's health data for a user (for dashboard display)"""
+    try:
+        today = datetime.utcnow().date().isoformat()
+        
+        # Get today's health sync data
+        today_data = await db.health_sync.find_one({
+            "user_id": user_id,
+            "sync_date": today
+        })
+        
+        if not today_data:
+            # Return zeros if no data for today
+            return {
+                "has_data": False,
+                "date": today,
+                "steps": 0,
+                "distance": 0,
+                "active_calories": 0,
+                "total_calories": 0,
+                "workouts": [],
+                "avg_heart_rate": None,
+                "last_sync": None
+            }
+        
+        return {
+            "has_data": True,
+            "date": today,
+            "steps": today_data.get("steps", 0),
+            "distance": today_data.get("distance", 0),
+            "active_calories": today_data.get("active_calories", 0),
+            "total_calories": today_data.get("total_calories", 0),
+            "workouts": today_data.get("workouts", []),
+            "avg_heart_rate": today_data.get("heart_rate", {}).get("avg") if today_data.get("heart_rate") else None,
+            "last_sync": today_data.get("sync_time")
+        }
+    except Exception as e:
+        logger.error(f"Error getting today's health data: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ============================================================================
 # PEPTIDE CALCULATOR
 # ============================================================================
-
 # Comprehensive Peptide Database
 PEPTIDE_DATABASE = {
     # Recovery Peptides
