@@ -25,6 +25,7 @@ import { format, addDays, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { router } from 'expo-router';
 import axios from 'axios';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
@@ -109,13 +110,6 @@ export default function ScheduleScreen() {
     { id: '1week', label: '1 week before', minutes: 10080 },
   ];
   
-  // Time picker options
-  const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, i) => {
-    const hours = Math.floor(i / 4);
-    const minutes = (i % 4) * 15;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  });
-  
   // Custom workout state
   const [customWorkoutName, setCustomWorkoutName] = useState('');
   const [customExercises, setCustomExercises] = useState<{name: string, sets: string, reps: string}[]>([
@@ -157,12 +151,53 @@ export default function ScheduleScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [plansData, userPlansData, scheduledData, weightHistoryData] = await Promise.all([
-        plansAPI.getWorkoutPlans(),
-        plansAPI.getUserPlans(userId!, 'active'),
-        fetch(`${API_URL}/api/scheduled-workouts/${userId}`).then(r => r.json()),
-        axios.get(`${API_URL}/api/weight-training/history/${userId}?days=90`),
-      ]);
+      
+      // Load AI-generated workout history from AsyncStorage
+      let aiWorkoutHistory: any[] = [];
+      try {
+        const historyData = await AsyncStorage.getItem('@fittrax_workout_history');
+        if (historyData) {
+          aiWorkoutHistory = JSON.parse(historyData);
+        }
+      } catch (e) {
+        console.log('No AI workout history found');
+      }
+      
+      // If no userId, just use AI workout history
+      if (!userId) {
+        const aiWorkoutsFormatted = aiWorkoutHistory.map((h: any) => ({
+          id: `ai_${h.completedDate}_${h.workoutIndex}`,
+          workout_name: h.workoutName,
+          timestamp: h.completedDate, // Use completedDate as timestamp for calendar
+          completed_at: h.completedAt,
+          source: 'ai_plan',
+          exercises: [],
+        }));
+        setCompletedWorkouts(aiWorkoutsFormatted);
+        setLoading(false);
+        return;
+      }
+      
+      let plansData = { plans: [] };
+      let userPlansData = { user_plans: [] };
+      let scheduledData = { scheduled_workouts: [] };
+      let backendWorkouts: any[] = [];
+      
+      try {
+        const results = await Promise.all([
+          plansAPI.getWorkoutPlans().catch(() => ({ plans: [] })),
+          plansAPI.getUserPlans(userId, 'active').catch(() => ({ user_plans: [] })),
+          fetch(`${API_URL}/api/scheduled-workouts/${userId}`).then(r => r.json()).catch(() => ({ scheduled_workouts: [] })),
+          axios.get(`${API_URL}/api/weight-training/history/${userId}?days=90`).catch(() => ({ data: { workouts: [] } })),
+        ]);
+        
+        plansData = results[0] || { plans: [] };
+        userPlansData = results[1] || { user_plans: [] };
+        scheduledData = results[2] || { scheduled_workouts: [] };
+        backendWorkouts = results[3]?.data?.workouts || [];
+      } catch (e) {
+        console.log('Error fetching data from backend:', e);
+      }
       
       const allAvailablePlans = [
         ...(plansData.plans || []).map((p: any, index: number) => ({ 
@@ -180,7 +215,21 @@ export default function ScheduleScreen() {
       setAllPlans(allAvailablePlans);
       setUserPlans(userPlansData.user_plans || []);
       setScheduledWorkouts(scheduledData.scheduled_workouts || []);
-      setCompletedWorkouts(weightHistoryData.data.workouts || []);
+      
+      // Convert AI workout history to match the completedWorkouts format
+      // Note: timestamp is used by the calendar marking logic
+      const aiWorkoutsFormatted = aiWorkoutHistory.map((h: any) => ({
+        id: `ai_${h.completedDate}_${h.workoutIndex}`,
+        workout_name: h.workoutName,
+        timestamp: h.completedDate, // Use completedDate as timestamp for calendar
+        completed_at: h.completedAt,
+        source: 'ai_plan',
+        exercises: [],
+      }));
+      
+      // Combine both sources
+      const allCompletedWorkouts = [...backendWorkouts, ...aiWorkoutsFormatted];
+      setCompletedWorkouts(allCompletedWorkouts);
     } catch (error) {
       console.error('Error loading schedule data:', error);
     } finally {
@@ -628,7 +677,10 @@ export default function ScheduleScreen() {
 
     completedWorkouts.forEach((workout, index) => {
       if (!workout.timestamp) return; // Skip if no timestamp
-      const date = format(new Date(workout.timestamp), 'yyyy-MM-dd');
+      // Use timestamp directly if it's already in YYYY-MM-DD format, otherwise format it
+      const date = workout.timestamp.includes('T') 
+        ? format(new Date(workout.timestamp), 'yyyy-MM-dd')
+        : workout.timestamp; // Already in YYYY-MM-DD format from AI workout history
       if (!marks[date]) {
         marks[date] = { dots: [] };
       }
@@ -662,9 +714,14 @@ export default function ScheduleScreen() {
     (w) => w.scheduled_date === selectedDate
   );
 
-  const completedForSelectedDate = completedWorkouts.filter(
-    (w) => format(new Date(w.timestamp), 'yyyy-MM-dd') === selectedDate
-  );
+  const completedForSelectedDate = completedWorkouts.filter((w) => {
+    if (!w.timestamp) return false;
+    // Handle both YYYY-MM-DD format and full ISO timestamp
+    const date = w.timestamp.includes('T') 
+      ? format(new Date(w.timestamp), 'yyyy-MM-dd')
+      : w.timestamp;
+    return date === selectedDate;
+  });
 
   const upcomingWorkouts = scheduledWorkouts
     .filter(w => w.scheduled_date >= today && !w.completed)
@@ -672,8 +729,7 @@ export default function ScheduleScreen() {
     .slice(0, 5);
 
   const localStyles = createStyles(theme);
-
-  // Toggle picker expansion (collapse others when one opens)
+    // Toggle picker expansion (collapse others when one opens)
   const togglePlanPicker = () => {
     setPlanExpanded(!planExpanded);
     setDayExpanded(false);
@@ -1291,8 +1347,7 @@ export default function ScheduleScreen() {
             </ScrollView>
           </SafeAreaView>
         </Modal>
-
-        {/* Custom Workout Modal */}
+                {/* Custom Workout Modal */}
         <Modal
           visible={customWorkoutModalVisible}
           animationType="slide"
@@ -1462,34 +1517,33 @@ export default function ScheduleScreen() {
                           {/* Data Rows */}
                           {Object.keys(exercise.reps).filter(day => exercise.reps[day]).map((day) => (
                             <View key={day} style={[localStyles.tableDataRow, { borderBottomColor: colors.border.primary }]}>
-                              <Text style={[localStyles.tableDataCell, localStyles.dayCell, { color: colors.text.secondary }]}>
-                                Day {day}
+                              <Text style={[localStyles.tableDataCell, localStyles.dayCell, { color: colors.text.muted }]}>
+                                {day}
                               </Text>
                               <Text style={[localStyles.tableDataCell, { color: colors.text.primary }]}>
                                 {exercise.reps[day] || '-'}
                               </Text>
-                              <Text style={[localStyles.tableDataCell, { color: accent.primary, fontWeight: '600' }]}>
+                              <Text style={[localStyles.tableDataCell, { color: colors.text.primary }]}>
                                 {exercise.weight?.[day] ? `${exercise.weight[day]} lbs` : '-'}
                               </Text>
                             </View>
                           ))}
                           
                           {/* Summary Row */}
-                          <View style={[localStyles.tableSummaryRow, { backgroundColor: `${accent.primary}10` }]}>
+                          <View style={[localStyles.tableSummaryRow, { backgroundColor: colors.background.secondary }]}>
                             <Text style={[localStyles.tableSummaryLabel, { color: colors.text.secondary }]}>
-                              Max Weight:
+                              Total Sets Completed
                             </Text>
                             <Text style={[localStyles.tableSummaryValue, { color: accent.primary }]}>
-                              {exercise.weight 
-                                ? Math.max(...Object.values(exercise.weight).map((w: any) => parseFloat(w) || 0)) 
-                                : 0} lbs
+                              {Object.keys(exercise.reps).filter(day => exercise.reps[day]).length}
                             </Text>
                           </View>
                         </View>
                       )}
                       
+                      {/* Notes if available */}
                       {exercise.notes && (
-                        <View style={[localStyles.exerciseNotesContainer, { backgroundColor: colors.background.input }]}>
+                        <View style={[localStyles.exerciseNotesContainer, { backgroundColor: colors.background.secondary }]}>
                           <Ionicons name="document-text-outline" size={16} color={colors.text.muted} />
                           <Text style={[localStyles.exerciseDetailNotes, { color: colors.text.secondary }]}>
                             {exercise.notes}
@@ -1510,7 +1564,7 @@ export default function ScheduleScreen() {
                     }}
                   >
                     <Ionicons name="trash" size={20} color="#fff" />
-                    <Text style={localStyles.deleteWorkoutButtonText}>Delete Workout</Text>
+                    <Text style={localStyles.deleteWorkoutButtonText}>Delete from Calendar</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -1518,7 +1572,7 @@ export default function ScheduleScreen() {
           </SafeAreaView>
         </Modal>
 
-        {/* Workout Detail Modal */}
+        {/* Workout Detail Modal (for scheduled workouts) */}
         <Modal
           visible={workoutDetailModalVisible}
           animationType="slide"
@@ -1535,33 +1589,26 @@ export default function ScheduleScreen() {
               }}>
                 <Ionicons name="close" size={28} color={colors.text.primary} />
               </TouchableOpacity>
-              <Text style={[localStyles.modalTitle, { color: colors.text.primary }]}>
-                {editingWorkout ? 'Edit Workout' : 'Workout Details'}
-              </Text>
+              <Text style={[localStyles.modalTitle, { color: colors.text.primary }]}>Workout Details</Text>
               <TouchableOpacity onPress={() => {
                 if (editingWorkout) {
-                  // Save changes when clicking checkmark in edit mode
                   updateScheduledWorkout();
                 } else {
-                  // Enter edit mode
                   setEditingWorkout(true);
                 }
               }}>
-                <Ionicons name={editingWorkout ? "checkmark" : "pencil"} size={24} color={accent.primary} />
+                <Text style={[localStyles.modalDoneText, { color: accent.primary }]}>
+                  {editingWorkout ? 'Save' : 'Edit'}
+                </Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView style={localStyles.modalScroll} showsVerticalScrollIndicator={false}>
               {selectedWorkoutDetail && (
                 <>
-                  {/* Workout Header with Color */}
-                  <View style={[localStyles.workoutDetailHeader, { 
-                    borderLeftWidth: 5, 
-                    borderLeftColor: selectedWorkoutDetail.completed ? '#22C55E' : (selectedWorkoutDetail.color_hex || '#3B82F6')
-                  }]}>
-                    <View style={[localStyles.workoutDetailColorDot, { 
-                      backgroundColor: selectedWorkoutDetail.completed ? '#22C55E' : (selectedWorkoutDetail.color_hex || '#3B82F6') 
-                    }]} />
+                  {/* Workout Header */}
+                  <View style={[localStyles.workoutDetailHeader, { backgroundColor: colors.background.card }]}>
+                    <View style={[localStyles.workoutDetailColorDot, { backgroundColor: selectedWorkoutDetail.color_hex || accent.primary }]} />
                     <View style={localStyles.workoutDetailInfo}>
                       <Text style={[localStyles.workoutDetailTitle, { color: colors.text.primary }]}>
                         {selectedWorkoutDetail.title || 'Workout'}
@@ -1570,53 +1617,46 @@ export default function ScheduleScreen() {
                         {formatDateLabel(selectedWorkoutDetail.scheduled_date)}
                       </Text>
                     </View>
-                    {selectedWorkoutDetail.completed && (
-                      <View style={[localStyles.completedBadge, { backgroundColor: '#22C55E' }]}>
-                        <Ionicons name="checkmark" size={16} color="#fff" />
-                        <Text style={localStyles.completedBadgeText}>Complete</Text>
-                      </View>
-                    )}
                   </View>
 
                   {/* Time Section */}
                   <View style={[localStyles.detailSection, { backgroundColor: colors.background.card }]}>
                     <View style={localStyles.detailSectionHeader}>
                       <Ionicons name="time-outline" size={20} color={accent.primary} />
-                      <Text style={[localStyles.detailSectionTitle, { color: colors.text.primary }]}>Scheduled Time</Text>
+                      <Text style={[localStyles.detailSectionTitle, { color: colors.text.primary }]}>Time</Text>
                     </View>
                     {editingWorkout ? (
                       <>
-                        <TouchableOpacity
-                          style={[localStyles.pickerButton, { backgroundColor: colors.background.input }]}
+                        <TouchableOpacity 
+                          style={[localStyles.timeInput, { backgroundColor: colors.background.secondary }]}
                           onPress={() => setShowTimePicker(!showTimePicker)}
                         >
-                          <Text style={[localStyles.pickerButtonText, { color: colors.text.primary }]}>
+                          <Text style={[localStyles.detailValue, { color: colors.text.primary }]}>
                             {formatTime(editedWorkoutTime)}
                           </Text>
-                          <Ionicons name={showTimePicker ? "chevron-up" : "chevron-down"} size={20} color={colors.text.muted} />
                         </TouchableOpacity>
                         {showTimePicker && (
-                          <ScrollView style={localStyles.timePickerList} nestedScrollEnabled showsVerticalScrollIndicator={true}>
-                            {TIME_OPTIONS.map((timeOption) => (
+                          <ScrollView style={localStyles.timePickerList} nestedScrollEnabled>
+                            {TIME_OPTIONS.map((option) => (
                               <TouchableOpacity
-                                key={timeOption}
+                                key={option.value}
                                 style={[
                                   localStyles.timePickerItem,
-                                  editedWorkoutTime === timeOption && { backgroundColor: `${accent.primary}20` }
+                                  editedWorkoutTime === option.value && { backgroundColor: accent.primary + '20' }
                                 ]}
                                 onPress={() => {
-                                  setEditedWorkoutTime(timeOption);
+                                  setEditedWorkoutTime(option.value);
                                   setShowTimePicker(false);
                                 }}
                               >
                                 <Text style={[
                                   localStyles.timePickerText,
-                                  { color: editedWorkoutTime === timeOption ? accent.primary : colors.text.primary }
+                                  { color: editedWorkoutTime === option.value ? accent.primary : colors.text.primary }
                                 ]}>
-                                  {formatTime(timeOption)}
+                                  {option.label}
                                 </Text>
-                                {editedWorkoutTime === timeOption && (
-                                  <Ionicons name="checkmark" size={18} color={accent.primary} />
+                                {editedWorkoutTime === option.value && (
+                                  <Ionicons name="checkmark" size={20} color={accent.primary} />
                                 )}
                               </TouchableOpacity>
                             ))}
@@ -1624,7 +1664,7 @@ export default function ScheduleScreen() {
                         )}
                       </>
                     ) : (
-                      <Text style={[localStyles.detailValue, { color: colors.text.secondary }]}>
+                      <Text style={[localStyles.detailValue, { color: colors.text.primary }]}>
                         {formatTime(selectedWorkoutDetail.scheduled_time)}
                       </Text>
                     )}
@@ -1633,19 +1673,18 @@ export default function ScheduleScreen() {
                   {/* Reminder Section */}
                   <View style={[localStyles.detailSection, { backgroundColor: colors.background.card }]}>
                     <View style={localStyles.detailSectionHeader}>
-                      <Ionicons name="notifications-outline" size={20} color="#F59E0B" />
-                      <Text style={[localStyles.detailSectionTitle, { color: colors.text.primary }]}>Reminder Alert</Text>
+                      <Ionicons name="notifications-outline" size={20} color={accent.primary} />
+                      <Text style={[localStyles.detailSectionTitle, { color: colors.text.primary }]}>Reminder</Text>
                     </View>
                     {editingWorkout ? (
                       <>
-                        <TouchableOpacity
-                          style={[localStyles.pickerButton, { backgroundColor: colors.background.input }]}
+                        <TouchableOpacity 
+                          style={[localStyles.timeInput, { backgroundColor: colors.background.secondary }]}
                           onPress={() => setShowReminderPicker(!showReminderPicker)}
                         >
-                          <Text style={[localStyles.pickerButtonText, { color: colors.text.primary }]}>
-                            {REMINDER_OPTIONS.find(r => r.id === editedReminderOption)?.label || 'Select reminder'}
+                          <Text style={[localStyles.detailValue, { color: colors.text.primary }]}>
+                            {REMINDER_OPTIONS.find(r => r.id === editedReminderOption)?.label || 'No reminder'}
                           </Text>
-                          <Ionicons name={showReminderPicker ? "chevron-up" : "chevron-down"} size={20} color={colors.text.muted} />
                         </TouchableOpacity>
                         {showReminderPicker && (
                           <View style={localStyles.reminderPickerList}>
@@ -1654,7 +1693,7 @@ export default function ScheduleScreen() {
                                 key={option.id}
                                 style={[
                                   localStyles.reminderPickerItem,
-                                  editedReminderOption === option.id && { backgroundColor: `${accent.primary}20` }
+                                  editedReminderOption === option.id && { backgroundColor: accent.primary + '20' }
                                 ]}
                                 onPress={() => {
                                   setEditedReminderOption(option.id);
@@ -1668,7 +1707,7 @@ export default function ScheduleScreen() {
                                   {option.label}
                                 </Text>
                                 {editedReminderOption === option.id && (
-                                  <Ionicons name="checkmark" size={18} color={accent.primary} />
+                                  <Ionicons name="checkmark" size={20} color={accent.primary} />
                                 )}
                               </TouchableOpacity>
                             ))}
@@ -1676,56 +1715,55 @@ export default function ScheduleScreen() {
                         )}
                       </>
                     ) : (
-                      <Text style={[localStyles.detailValue, { color: colors.text.secondary }]}>
+                      <Text style={[localStyles.detailValue, { color: colors.text.primary }]}>
                         {REMINDER_OPTIONS.find(r => r.id === (selectedWorkoutDetail.reminder_option || '30min'))?.label || '30 minutes before'}
                       </Text>
                     )}
                   </View>
 
                   {/* Exercises Section */}
-                  <Text style={[localStyles.exercisesSectionTitle, { color: colors.text.primary }]}>
-                    Exercises ({selectedWorkoutDetail.exercises?.length || 0})
-                  </Text>
-                  
-                  {selectedWorkoutDetail.exercises?.map((exercise: any, index: number) => (
-                    <View key={index} style={[localStyles.exerciseDetailCard, { backgroundColor: colors.background.card }]}>
-                      <View style={localStyles.exerciseIndexBadge}>
-                        <Text style={localStyles.exerciseIndexText}>{index + 1}</Text>
-                      </View>
-                      <View style={localStyles.exerciseDetailContent}>
-                        <Text style={[localStyles.exerciseDetailName, { color: colors.text.primary }]}>
-                          {exercise.name}
+                  {selectedWorkoutDetail.exercises && selectedWorkoutDetail.exercises.length > 0 && (
+                    <View style={[localStyles.detailSection, { backgroundColor: colors.background.card }]}>
+                      <View style={localStyles.detailSectionHeader}>
+                        <MaterialCommunityIcons name="dumbbell" size={20} color={accent.primary} />
+                        <Text style={[localStyles.detailSectionTitle, { color: colors.text.primary }]}>
+                          Exercises ({selectedWorkoutDetail.exercises.length})
                         </Text>
-                        <View style={localStyles.exerciseMetaRow}>
-                          {exercise.sets && (
-                            <Text style={[localStyles.exerciseMeta, { color: colors.text.secondary }]}>
-                              {exercise.sets} sets
-                            </Text>
-                          )}
-                          {exercise.reps && typeof exercise.reps === 'string' && (
-                            <Text style={[localStyles.exerciseMeta, { color: colors.text.secondary }]}>
-                              {exercise.reps} reps
-                            </Text>
-                          )}
-                          {exercise.weight && typeof exercise.weight === 'string' && (
-                            <Text style={[localStyles.exerciseMeta, { color: accent.primary, fontWeight: '600' }]}>
-                              {exercise.weight}
-                            </Text>
-                          )}
-                        </View>
-                        {exercise.notes && (
-                          <Text style={[localStyles.exerciseNote, { color: colors.text.muted }]} numberOfLines={2}>
-                            {exercise.notes}
-                          </Text>
-                        )}
                       </View>
+                      {selectedWorkoutDetail.exercises.map((exercise: any, index: number) => (
+                        <View key={index} style={[localStyles.exerciseRow, { marginBottom: 8 }]}>
+                          <View style={localStyles.exerciseIndexBadge}>
+                            <Text style={localStyles.exerciseIndexText}>{index + 1}</Text>
+                          </View>
+                          <View style={localStyles.exerciseDetailContent}>
+                            <Text style={[localStyles.exerciseDetailName, { color: colors.text.primary, marginBottom: 0 }]}>
+                              {exercise.name}
+                            </Text>
+                            <View style={localStyles.exerciseMetaRow}>
+                              <Text style={[localStyles.exerciseMeta, { color: colors.text.secondary }]}>
+                                {exercise.sets} sets × {exercise.reps} reps
+                              </Text>
+                              {exercise.weight && (
+                                <Text style={[localStyles.exerciseMeta, { color: accent.primary }]}>
+                                  {exercise.weight} lbs
+                                </Text>
+                              )}
+                            </View>
+                            {exercise.notes && (
+                              <Text style={[localStyles.exerciseNote, { color: colors.text.muted }]}>
+                                {exercise.notes}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      ))}
                     </View>
-                  ))}
+                  )}
 
                   {/* Action Buttons */}
                   <View style={localStyles.detailActions}>
                     {editingWorkout ? (
-                      <TouchableOpacity
+                      <TouchableOpacity 
                         style={[localStyles.saveButton, { backgroundColor: accent.primary }]}
                         onPress={updateScheduledWorkout}
                       >
@@ -1735,19 +1773,19 @@ export default function ScheduleScreen() {
                     ) : (
                       <>
                         {!selectedWorkoutDetail.completed && (
-                          <TouchableOpacity
-                            style={[localStyles.completeWorkoutButton, { backgroundColor: '#22C55E' }]}
+                          <TouchableOpacity 
+                            style={[localStyles.completeWorkoutButton, { backgroundColor: colors.status.success }]}
                             onPress={() => {
                               handleCompleteWorkout(selectedWorkoutDetail.scheduled_id || selectedWorkoutDetail.workout_id);
                               setWorkoutDetailModalVisible(false);
                             }}
                           >
-                            <Ionicons name="checkmark-done" size={20} color="#fff" />
+                            <Ionicons name="checkmark-circle" size={20} color="#fff" />
                             <Text style={localStyles.completeWorkoutText}>Mark as Complete</Text>
                           </TouchableOpacity>
                         )}
-                        <TouchableOpacity
-                          style={localStyles.deleteWorkoutButton}
+                        <TouchableOpacity 
+                          style={[localStyles.deleteWorkoutButton]}
                           onPress={() => {
                             setWorkoutDetailModalVisible(false);
                             confirmDeleteWorkout(selectedWorkoutDetail.scheduled_id || selectedWorkoutDetail.workout_id);
@@ -1781,34 +1819,30 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 20,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
+    padding: 4,
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: theme.colors.text.primary,
   },
   addBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
+    padding: 4,
   },
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 24,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   legendItem: {
     flexDirection: 'row',
@@ -1836,14 +1870,14 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.text.muted,
   },
   quickAddButton: {
+    backgroundColor: theme.accentColors.primary,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.accentColors.primary,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    paddingVertical: 14,
     gap: 10,
+    marginBottom: 20,
   },
   quickAddText: {
     color: '#fff',
@@ -1868,6 +1902,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: theme.accentColors.primary + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   addForDateText: {
     fontSize: 14,
@@ -1875,54 +1913,46 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.accentColors.primary,
   },
   upcomingCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     backgroundColor: theme.colors.background.card,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   workoutColorDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    marginRight: 8,
+    marginRight: 12,
   },
   upcomingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
     flex: 1,
   },
   upcomingDate: {
-    backgroundColor: theme.accentColors.primary + '20',
-    borderRadius: 10,
-    padding: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
-    minWidth: 70,
+    gap: 8,
+    marginBottom: 4,
   },
   upcomingDateText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     color: theme.accentColors.primary,
   },
   upcomingTime: {
-    fontSize: 11,
+    fontSize: 13,
     color: theme.colors.text.secondary,
-    marginTop: 2,
   },
-  upcomingInfo: {
-    flex: 1,
-  },
+  upcomingInfo: {},
   upcomingPlan: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text.primary,
   },
   upcomingDay: {
     fontSize: 13,
-    color: theme.colors.text.secondary,
+    color: theme.colors.text.muted,
     marginTop: 2,
   },
   upcomingActions: {
@@ -1930,18 +1960,18 @@ const createStyles = (theme: any) => StyleSheet.create({
     gap: 8,
   },
   rescheduleBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: theme.accentColors.primary + '20',
     justifyContent: 'center',
     alignItems: 'center',
   },
   completeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.status.success,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+        backgroundColor: theme.colors.status.success,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2518,19 +2548,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
-  completedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
-  },
-  completedBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   detailSection: {
     borderRadius: 12,
     padding: 16,
@@ -2615,18 +2632,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
-  },
-  // Picker styles
-  pickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 10,
-  },
-  pickerButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
   },
   timePickerList: {
     maxHeight: 200,
