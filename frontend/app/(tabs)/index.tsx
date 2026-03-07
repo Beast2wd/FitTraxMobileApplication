@@ -31,28 +31,31 @@ import { Audio } from 'expo-av';
 import i18next from 'i18next';
 import { AccentColors } from '../../constants/Colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import useHealthKit from '../../hooks/useHealthKit';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 const { width } = Dimensions.get('window');
 
+// Professional AI images for dashboard stat cards
 const STAT_CARD_IMAGES = {
-  meals: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80',
-  training: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80',
-  hydration: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=400&q=80',
-  heartRate: 'https://customer-assets.emergentagent.com/job_fitness-journey-294/artifacts/88l42rrl_Heart%20Rate.PNG',
+  meals: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80', // Healthy food bowl
+  training: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80', // Gym weights
+  hydration: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=400&q=80', // Water glass
+  heartRate: 'https://customer-assets.emergentagent.com/job_fitness-journey-294/artifacts/88l42rrl_Heart%20Rate.PNG', // Custom heart rate image
 };
 
+// Professional AI images for quick action buttons
 const QUICK_ACTION_IMAGES = {
-  aiCoach: 'https://customer-assets.emergentagent.com/job_fitness-journey-294/artifacts/gyrwpd2a_Workout%20Coach.png',
-  scanFood: 'https://customer-assets.emergentagent.com/job_fitness-journey-294/artifacts/st3byqjm_Scan%20Food.PNG',
-  schedule: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=200&q=80',
-  workoutLog: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=200&q=80',
-  run: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=200&q=80',
-  steps: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=200&q=80',
-  bodyScan: 'https://customer-assets.emergentagent.com/job_fitness-journey-294/artifacts/72x53yl1_Body%20Scan.PNG',
-  peptides: 'https://customer-assets.emergentagent.com/job_fitness-journey-294/artifacts/r1mqcelc_peptide%20vial.jpg',
-  rewards: 'https://images.unsplash.com/photo-1567427017947-545c5f8d16ad?w=200&q=80',
-  analytics: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=200&q=80',
+  aiCoach: 'https://customer-assets.emergentagent.com/job_fitness-journey-294/artifacts/gyrwpd2a_Workout%20Coach.png', // Custom AI workout coach image
+  scanFood: 'https://customer-assets.emergentagent.com/job_fitness-journey-294/artifacts/st3byqjm_Scan%20Food.PNG', // Custom scan food image
+  schedule: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=200&q=80', // Calendar planning
+  workoutLog: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=200&q=80', // Workout/gym
+  run: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=200&q=80', // Running outdoors
+  steps: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=200&q=80', // Walking/steps
+  bodyScan: 'https://customer-assets.emergentagent.com/job_fitness-journey-294/artifacts/72x53yl1_Body%20Scan.PNG', // Custom body scan image
+  peptides: 'https://customer-assets.emergentagent.com/job_fitness-journey-294/artifacts/r1mqcelc_peptide%20vial.jpg', // Custom peptide vial image
+  rewards: 'https://images.unsplash.com/photo-1567427017947-545c5f8d16ad?w=200&q=80', // Trophy/medal
+  analytics: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=200&q=80', // Data analytics charts
 };
 
 export default function DashboardScreen() {
@@ -80,11 +83,14 @@ export default function DashboardScreen() {
   const [hasGreeted, setHasGreeted] = useState(false);
   const appState = useRef(AppState.currentState);
   
+  // Premium status
   const isPremium = membershipStatus?.is_premium || false;
 
+  // Get accent color gradient for running button
   const runningButtonGradient = AccentColors[accentKey]?.gradient || ['#EC4899', '#BE185D'];
   const runningButtonPrimary = AccentColors[accentKey]?.primary || '#EC4899';
   
+  // Check if using English for pace display
   const isEnglish = i18next.language?.startsWith('en') || i18next.language === 'en';
   const [lastPosition, setLastPosition] = useState<any>(null);
   const locationSubscription = useRef<any>(null);
@@ -94,15 +100,28 @@ export default function DashboardScreen() {
   const colors = theme.colors;
   const accent = theme.accentColors;
 
+  // HealthKit integration
+  const {
+    connectionStatus: healthConnectionStatus,
+    todayData: healthKitData,
+    syncHealthData,
+    isAvailable: isHealthKitAvailable,
+  } = useHealthKit(userId);
+
+  // Voice Greeting Function - Only plays custom recorded greeting
   const playVoiceGreeting = async () => {
     try {
+      // Check if voice greeting is enabled
       const voiceEnabled = await AsyncStorage.getItem('voiceGreetingEnabled');
       if (voiceEnabled === 'false') return;
 
+      // Check if user has a custom recording
       const customRecordingUri = await AsyncStorage.getItem('customVoiceRecordingUri');
       
       if (customRecordingUri) {
+        // Play the custom recorded greeting through speaker even on silent mode
         try {
+          // Set audio mode to play through speaker even when silent
           await Audio.setAudioModeAsync({
             allowsRecordingIOS: false,
             playsInSilentModeIOS: true,
@@ -117,15 +136,18 @@ export default function DashboardScreen() {
           console.log('Error playing custom recording:', audioError);
         }
       }
+      // If no custom recording, do nothing (no TTS fallback)
 
     } catch (error) {
       console.log('Voice greeting error:', error);
     }
   };
 
+  // Handle app state changes for greeting
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        // App came to foreground - play greeting every time
         playVoiceGreeting();
       }
       appState.current = nextAppState;
@@ -134,9 +156,11 @@ export default function DashboardScreen() {
     return () => subscription.remove();
   }, [profile]);
 
+  // Initial greeting on first load
   useEffect(() => {
     if (profile && !hasGreeted) {
       setHasGreeted(true);
+      // Small delay to let the UI render first
       setTimeout(() => playVoiceGreeting(), 1500);
     }
   }, [profile, hasGreeted]);
@@ -162,6 +186,7 @@ export default function DashboardScreen() {
       const response = await axios.get(`${API_URL}/api/membership/status/${userId}`, { timeout: 5000 });
       setMembershipStatus(response.data);
     } catch (error) {
+      // Silently fail - user can still use app in offline mode
       console.log('Offline: Using default membership status');
     }
   }, [userId, setMembershipStatus]);
@@ -184,6 +209,7 @@ export default function DashboardScreen() {
         setPendingAchievements(prev => [...prev, ...newAchievements]);
       }
     } catch (error) {
+      // Silently fail for offline mode - gamification is optional
       console.log('Offline: Gamification sync skipped');
     }
   }, [userId]);
@@ -201,6 +227,7 @@ export default function DashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Get local date in YYYY-MM-DD format
               const now = new Date();
               const year = now.getFullYear();
               const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -209,8 +236,8 @@ export default function DashboardScreen() {
               
               await axios.delete(`${API_URL}/api/meals/clear-day/${userId}?date=${localDate}`);
               Alert.alert('Success', 'All of today\'s meals have been cleared.');
-              loadDashboard();
-              triggerMealRefresh();
+              loadDashboard(); // Refresh dashboard
+              triggerMealRefresh(); // Notify other screens to refresh
             } catch (error) {
               console.error('Error clearing meals:', error);
               Alert.alert('Error', 'Failed to clear meals. Please try again.');
@@ -254,6 +281,7 @@ export default function DashboardScreen() {
     }
   }, [userId]);
 
+  // Refresh dashboard when a meal is logged from scan screen
   useEffect(() => {
     if (lastMealLoggedAt && userId) {
       console.log('Meal logged, refreshing dashboard...');
@@ -261,6 +289,7 @@ export default function DashboardScreen() {
     }
   }, [lastMealLoggedAt]);
 
+  // Refresh dashboard when screen comes into focus (e.g., returning from scan screen)
   useFocusEffect(
     useCallback(() => {
       if (userId && !loading) {
@@ -272,13 +301,17 @@ export default function DashboardScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     loadDashboard();
+    // Also sync HealthKit data if connected
+    if (healthConnectionStatus.connected && healthConnectionStatus.method === 'apple_health') {
+      syncHealthData();
+    }
   };
 
   const addWater = async (amount: number) => {
     try {
       await waterAPI.addWater({
         water_id: `water_${Date.now()}`,
-                user_id: userId!,
+        user_id: userId!,
         amount,
         timestamp: new Date().toISOString(),
       });
@@ -288,8 +321,9 @@ export default function DashboardScreen() {
     }
   };
 
+  // Quick Run functions
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 3959;
+    const R = 3959; // Earth's radius in miles
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -300,21 +334,25 @@ export default function DashboardScreen() {
     return R * c;
   };
 
+  // Calculate pace based on language setting
   const calculatePace = (): { value: string; unit: string } => {
     if (runDistance <= 0 || runTime <= 0) {
       return { value: '0.0', unit: isEnglish ? 'min/mi' : 'min/km' };
     }
     
     if (isEnglish) {
+      // min/mi for English
       const paceMinPerMile = (runTime / 60) / runDistance;
       return { value: paceMinPerMile.toFixed(1), unit: 'min/mi' };
     } else {
+      // min/km for other languages
       const distanceKm = runDistance * 1.60934;
       const paceMinPerKm = (runTime / 60) / distanceKm;
       return { value: paceMinPerKm.toFixed(1), unit: 'min/km' };
     }
   };
 
+  // Get display distance based on language
   const getDisplayDistance = (): { value: string; unit: string } => {
     if (isEnglish) {
       return { value: runDistance.toFixed(2), unit: 'miles' };
@@ -342,21 +380,25 @@ export default function DashboardScreen() {
         return;
       }
 
+      // Reset and start run via store
       resetRun();
       setLastPosition(null);
       runStartTime.current = new Date();
       startRunStore();
 
+      // Start timer - use a local counter that syncs to store
       let timerCount = 0;
       timerRef.current = setInterval(() => {
         timerCount++;
         updateRunTime(timerCount);
       }, 1000);
 
+      // Track distance locally
       let currentDistance = 0;
       
+      // Start location tracking
       locationSubscription.current = await Location.watchPositionAsync(
-        {
+      {
           accuracy: Location.Accuracy.BestForNavigation,
           timeInterval: 1000,
           distanceInterval: 5,
@@ -370,7 +412,7 @@ export default function DashboardScreen() {
           setLastPosition((prev: { latitude: number; longitude: number } | null) => {
             if (prev) {
               const dist = calculateDistance(prev.latitude, prev.longitude, latitude, longitude);
-              if (dist < 0.5) {
+              if (dist < 0.5) { // Filter out GPS jumps > 0.5 miles
                 currentDistance += dist;
                 updateRunDistance(currentDistance);
               }
@@ -386,11 +428,13 @@ export default function DashboardScreen() {
   };
 
   const stopQuickRun = async () => {
+    // Stop timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
+    // Stop location tracking
     if (locationSubscription.current) {
       locationSubscription.current.remove();
       locationSubscription.current = null;
@@ -398,14 +442,18 @@ export default function DashboardScreen() {
 
     stopRunStore();
 
+    // Save the run to the backend
     if (runDistance > 0.01 && userId) {
       try {
+        // Convert miles to kilometers for backend
         const distanceKm = runDistance * 1.60934;
+        // Calculate pace in min/km (avoid division by zero)
         let avgPaceMinPerKm = 0;
         if (runTime > 0 && distanceKm > 0) {
           avgPaceMinPerKm = (runTime / 60) / distanceKm;
         }
         
+        // Ensure all values are valid numbers
         const safeDistance = isNaN(distanceKm) || !isFinite(distanceKm) ? 0 : distanceKm;
         const safePace = isNaN(avgPaceMinPerKm) || !isFinite(avgPaceMinPerKm) ? 0 : avgPaceMinPerKm;
         const safeCalories = isNaN(runDistance * 100) ? 0 : runDistance * 100;
@@ -439,13 +487,16 @@ export default function DashboardScreen() {
         Alert.alert('Run Complete', `Distance: ${runDistance.toFixed(2)} mi\nTime: ${formatTime(runTime)}\n\n(Failed to save to server)`);
       }
     } else {
+      // Reset without saving if distance is too small
       Alert.alert('Run Too Short', 'Run was not saved because the distance was too short.');
     }
 
+    // Reset state
     resetRun();
     setLastPosition(null);
   };
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -453,8 +504,10 @@ export default function DashboardScreen() {
     };
   }, []);
 
+  // Get TOS acceptance status from store
   const { tosAccepted } = useUserStore();
 
+  // Onboarding view - Check TOS first
   if (!userId || !profile) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
@@ -469,6 +522,7 @@ export default function DashboardScreen() {
           <TouchableOpacity 
             style={[styles.ctaButton, { backgroundColor: accent.primary }]}
             onPress={() => {
+              // Check if TOS has been accepted
               if (!tosAccepted?.accepted) {
                 router.push('/terms-of-service');
               } else {
@@ -495,6 +549,7 @@ export default function DashboardScreen() {
   }
 
   const today = dashboardData?.today || {};
+  // Use profile calorie goal from store for live updates, fallback to dashboard data
   const userCalorieGoal = profile?.custom_calorie_goal || profile?.daily_calorie_goal || today.calories_goal || 2000;
   const caloriesRemaining = userCalorieGoal - (today.net_calories || 0);
   const progressPercentage = Math.min(((today.net_calories || 0) / userCalorieGoal) * 100, 100);
@@ -556,7 +611,8 @@ export default function DashboardScreen() {
             </LinearGradient>
           </TouchableOpacity>
         )}
-                {/* Calorie Progress */}
+
+        {/* Calorie Progress */}
         <View style={[styles.calorieCard, { backgroundColor: colors.background.card }]}>
           <View style={styles.calorieHeader}>
             <View style={styles.calorieHeaderLeft}>
@@ -709,7 +765,42 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Hydration Quick Add */}
+        {/* Apple Health Status Card - Only shown when connected */}
+        {healthConnectionStatus.connected && healthConnectionStatus.method === 'apple_health' && (
+          <TouchableOpacity 
+            style={[styles.healthSyncCard, { backgroundColor: colors.background.card }]}
+            onPress={() => router.push({ pathname: '/health-connect', params: { fromSettings: 'true' } })}
+            activeOpacity={0.8}
+          >
+            <View style={styles.healthSyncContent}>
+              <View style={[styles.healthSyncIconContainer, { backgroundColor: '#EF444420' }]}>
+                <Ionicons name="heart" size={20} color="#EF4444" />
+              </View>
+              <View style={styles.healthSyncInfo}>
+                <View style={styles.healthSyncHeader}>
+                  <Text style={[styles.healthSyncTitle, { color: colors.text.primary }]}>Apple Health</Text>
+                  <View style={[styles.healthSyncBadge, { backgroundColor: '#10B98120' }]}>
+                    <View style={[styles.healthSyncDot, { backgroundColor: '#10B981' }]} />
+                    <Text style={[styles.healthSyncBadgeText, { color: '#10B981' }]}>Connected</Text>
+                  </View>
+                </View>
+                {healthKitData && (
+                  <View style={styles.healthSyncStats}>
+                    <Text style={[styles.healthSyncStat, { color: colors.text.muted }]}>
+                      <Ionicons name="footsteps" size={12} color={colors.text.muted} /> {healthKitData.steps?.toLocaleString() || 0} steps
+                    </Text>
+                    <Text style={[styles.healthSyncStat, { color: colors.text.muted }]}>  •  </Text>
+                    <Text style={[styles.healthSyncStat, { color: colors.text.muted }]}>
+                      <Ionicons name="flame" size={12} color={colors.text.muted} /> {healthKitData.activeCalories || 0} cal
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
+            </View>
+          </TouchableOpacity>
+        )}
+                {/* Hydration Quick Add */}
         <TouchableOpacity 
           style={[styles.waterSection, { backgroundColor: colors.background.card }]}
           onPress={() => router.push('/hydration')}
@@ -743,6 +834,7 @@ export default function DashboardScreen() {
 
         {/* Start Running Button */}
         {isRunning ? (
+          // Running State - Show timer and distance
           <View style={styles.runningActiveContainer}>
             <LinearGradient
               colors={runningButtonGradient as [string, string]}
@@ -793,6 +885,7 @@ export default function DashboardScreen() {
             </LinearGradient>
           </View>
         ) : (
+          // Idle State - Start Running button
           <TouchableOpacity 
             style={styles.startRunningButton}
             onPress={startQuickRun}
@@ -853,7 +946,7 @@ export default function DashboardScreen() {
             >
               <Image source={{ uri: action.image }} style={styles.actionCardImage} resizeMode="cover" />
               {action.premium && !isPremium && (
-                              <View style={styles.premiumBadgeAction}>
+                <View style={styles.premiumBadgeAction}>
                   <Ionicons name="diamond" size={10} color="#fff" />
                 </View>
               )}
@@ -865,25 +958,6 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* Premium Banner */}
-        <TouchableOpacity onPress={() => router.push('/membership')}>
-          <LinearGradient
-            colors={accent.gradient as [string, string]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.premiumBanner}
-          >
-            <View style={styles.premiumContent}>
-              <Ionicons name="diamond" size={28} color="#fff" />
-              <View style={styles.premiumText}>
-                <Text style={styles.premiumTitle}>FitTrax+ Premium</Text>
-                <Text style={styles.premiumSubtitle}>AI Workouts • Body Scan • Peptides</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -1087,6 +1161,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  // Image-based stat card styles
   statCardWithImage: {
     width: (width - 48 - 12) / 2,
     height: 120,
@@ -1217,6 +1292,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     marginTop: 2,
   },
+  // Running Active State Styles
   runningActiveContainer: {
     marginBottom: 24,
     borderRadius: 16,
@@ -1321,7 +1397,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     alignItems: 'center',
-    position: 'relative',
+        position: 'relative',
   },
   actionCardWithImage: {
     width: (width - 48 - 12) / 2,
@@ -1425,5 +1501,60 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.9)',
     marginTop: 2,
+  },
+  // Health Sync Card styles
+  healthSyncCard: {
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+  },
+  healthSyncContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  healthSyncIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  healthSyncInfo: {
+    flex: 1,
+  },
+  healthSyncHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  healthSyncTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  healthSyncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 4,
+  },
+  healthSyncDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  healthSyncBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  healthSyncStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  healthSyncStat: {
+    fontSize: 12,
   },
 });
