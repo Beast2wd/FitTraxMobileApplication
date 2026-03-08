@@ -31,7 +31,6 @@ import { Audio } from 'expo-av';
 import i18next from 'i18next';
 import { AccentColors } from '../../constants/Colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import useHealthKit from '../../hooks/useHealthKit';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 const { width } = Dimensions.get('window');
@@ -99,14 +98,6 @@ export default function DashboardScreen() {
 
   const colors = theme.colors;
   const accent = theme.accentColors;
-
-  // HealthKit integration
-  const {
-    connectionStatus: healthConnectionStatus,
-    todayData: healthKitData,
-    syncHealthData,
-    isAvailable: isHealthKitAvailable,
-  } = useHealthKit(userId);
 
   // Voice Greeting Function - Only plays custom recorded greeting
   const playVoiceGreeting = async () => {
@@ -301,10 +292,6 @@ export default function DashboardScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     loadDashboard();
-    // Also sync HealthKit data if connected
-    if (healthConnectionStatus.connected && healthConnectionStatus.method === 'apple_health') {
-      syncHealthData();
-    }
   };
 
   const addWater = async (amount: number) => {
@@ -765,41 +752,6 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Apple Health Status Card - Only shown when connected */}
-        {healthConnectionStatus.connected && healthConnectionStatus.method === 'apple_health' && (
-          <TouchableOpacity 
-            style={[styles.healthSyncCard, { backgroundColor: colors.background.card }]}
-            onPress={() => router.push({ pathname: '/health-connect', params: { fromSettings: 'true' } })}
-            activeOpacity={0.8}
-          >
-            <View style={styles.healthSyncContent}>
-              <View style={[styles.healthSyncIconContainer, { backgroundColor: '#EF444420' }]}>
-                <Ionicons name="heart" size={20} color="#EF4444" />
-              </View>
-              <View style={styles.healthSyncInfo}>
-                <View style={styles.healthSyncHeader}>
-                  <Text style={[styles.healthSyncTitle, { color: colors.text.primary }]}>Apple Health</Text>
-                  <View style={[styles.healthSyncBadge, { backgroundColor: '#10B98120' }]}>
-                    <View style={[styles.healthSyncDot, { backgroundColor: '#10B981' }]} />
-                    <Text style={[styles.healthSyncBadgeText, { color: '#10B981' }]}>Connected</Text>
-                  </View>
-                </View>
-                {healthKitData && (
-                  <View style={styles.healthSyncStats}>
-                    <Text style={[styles.healthSyncStat, { color: colors.text.muted }]}>
-                      <Ionicons name="footsteps" size={12} color={colors.text.muted} /> {healthKitData.steps?.toLocaleString() || 0} steps
-                    </Text>
-                    <Text style={[styles.healthSyncStat, { color: colors.text.muted }]}>  •  </Text>
-                    <Text style={[styles.healthSyncStat, { color: colors.text.muted }]}>
-                      <Ionicons name="flame" size={12} color={colors.text.muted} /> {healthKitData.activeCalories || 0} cal
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
-            </View>
-          </TouchableOpacity>
-        )}
                 {/* Hydration Quick Add */}
         <TouchableOpacity 
           style={[styles.waterSection, { backgroundColor: colors.background.card }]}
@@ -1502,59 +1454,3 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     marginTop: 2,
   },
-  // Health Sync Card styles
-  healthSyncCard: {
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 16,
-  },
-  healthSyncContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  healthSyncIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  healthSyncInfo: {
-    flex: 1,
-  },
-  healthSyncHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  healthSyncTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  healthSyncBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
-  },
-  healthSyncDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  healthSyncBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  healthSyncStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  healthSyncStat: {
-    fontSize: 12,
-  },
-});
