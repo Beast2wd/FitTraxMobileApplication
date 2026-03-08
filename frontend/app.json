@@ -14,11 +14,11 @@
       "backgroundColor": "#0D0D0D"
     },
     "ios": {
-  "supportsTablet": true,
-  "bundleIdentifier": "com.fittraxplus.app",
-  "buildNumber": "3",
-  "deploymentTarget": "15.1",
-  "infoPlist": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fittraxplus.app",
+      "buildNumber": "3",
+      "deploymentTarget": "15.1",
+      "infoPlist": {
         "NSCameraUsageDescription": "Scan food items and barcodes for quick nutrition logging.",
         "NSPhotoLibraryUsageDescription": "Save progress photos and share your fitness achievements.",
         "NSMicrophoneUsageDescription": "Record personalized voice greetings for your dashboard.",
@@ -82,13 +82,7 @@
           "motionPermission": "Allow FitTrax+ to access motion data for step tracking."
         }
       ],
-      "expo-web-browser",
-      [
-        "react-native-health",
-        {
-          "isClinicalDataEnabled": false
-        }
-      ]
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
