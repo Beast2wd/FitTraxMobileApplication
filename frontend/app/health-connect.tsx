@@ -11,143 +11,73 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useThemeStore } from '../stores/themeStore';
 import { useUserStore } from '../stores/userStore';
-import useHealthKit from '../hooks/useHealthKit';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const HEALTH_CONNECT_KEY = '@fittrax_health_connect_status';
 
 export default function HealthConnectScreen() {
   const { theme } = useThemeStore();
-  const { userId, profile } = useUserStore();
+  const { userId } = useUserStore();
   const colors = theme.colors;
   const accent = theme.accentColors;
-  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const isFromSettings = params.fromSettings === 'true';
 
-  const {
-    isAvailable,
-    isLoading: healthLoading,
-    connectionStatus,
-    requestPermission,
-    syncHealthData,
-    setManualMode,
-    disconnect,
-    todayData,
-  } = useHealthKit(userId);
-
   const [loading, setLoading] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [showStats, setShowStats] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState({
+    connected: false,
+    method: null as string | null,
+  });
 
   // Apple Health icon
   const appleHealthIcon = 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Apple_Health_%28iOS%29.svg/512px-Apple_Health_%28iOS%29.svg.png';
 
-  // Check if already connected on mount
+  // Load connection status on mount
   useEffect(() => {
-    if (connectionStatus.connected && connectionStatus.method === 'apple_health') {
-      setSelectedOption('apple_health');
-      // If coming from settings, show current stats
-      if (isFromSettings) {
-        setShowStats(true);
-        syncHealthData();
+    const loadStatus = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(HEALTH_CONNECT_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setConnectionStatus({
+            connected: parsed.connected,
+            method: parsed.method,
+          });
+          setSelectedOption(parsed.method);
+        }
+      } catch (e) {
+        console.error('Error loading health status:', e);
       }
-    } else if (connectionStatus.connected && connectionStatus.method === 'manual') {
-      setSelectedOption('manual');
-    }
-  }, [connectionStatus, isFromSettings]);
+    };
+    loadStatus();
+  }, []);
 
   const handleConnectAppleHealth = async () => {
     setLoading(true);
     setSelectedOption('apple_health');
 
-    try {
-      if (Platform.OS === 'ios') {
-        if (isAvailable) {
-          // Request HealthKit permission
-          const granted = await requestPermission();
-
-          if (granted) {
-            // Sync initial data
-            await syncHealthData();
-
-            Alert.alert(
-              'Connected! 🎉',
-              'Apple Health is now connected. Your steps, calories, and workouts will sync automatically.',
-              [
-                {
-                  text: isFromSettings ? 'Done' : 'Continue',
-                  onPress: () => {
-                    if (isFromSettings) {
-                      setShowStats(true);
-                    } else {
-                      router.replace('/(tabs)');
-                    }
-                  },
-                },
-              ]
-            );
-          } else {
-            // Permission denied or not available
-            Alert.alert(
-              'Permission Required',
-              'Please allow FitTrax+ to access your health data. Go to Settings > Privacy & Security > Health > FitTrax+ and enable all permissions.',
-              [
-                {
-                  text: 'Open Settings',
-                  onPress: () => Linking.openSettings(),
-                },
-                { text: 'Cancel', style: 'cancel' },
-              ]
-            );
-          }
-        } else {
-          // HealthKit not available (Expo Go or simulator)
-          Alert.alert(
-            'HealthKit Not Available',
-            'HealthKit integration requires a custom iOS build. To test:\n\n1. Build the app using EAS Build\n2. Install via TestFlight\n3. Return here to connect\n\nFor now, you can use manual tracking.',
-            [
-              {
-                text: 'Use Manual Tracking',
-                onPress: handleManualInput,
-              },
-              {
-                text: 'Open Settings Anyway',
-                onPress: () => {
-                  Linking.openSettings();
-                  setTimeout(() => {
-                    if (!isFromSettings) router.replace('/(tabs)');
-                  }, 500);
-                },
-              },
-            ]
-          );
-        }
-      } else {
-        // Android - Health Connect
-        Alert.alert(
-          'Health Connect',
-          'Google Health Connect integration is coming soon. For now, calorie burn will be estimated based on your workout data.',
-          [
-            {
-              text: 'Continue',
-              onPress: () => {
-                setManualMode();
-                if (!isFromSettings) router.replace('/(tabs)');
-              },
-            },
-          ]
-        );
-      }
-    } catch (error) {
-      console.error('Error connecting to health:', error);
-      Alert.alert('Error', 'Failed to connect. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    // Show coming soon message
+    Alert.alert(
+      'Coming Soon',
+      'Apple HealthKit integration will be available in a future update. For now, you can use manual tracking to log your workouts and calories.',
+      [
+        {
+          text: 'Use Manual Tracking',
+          onPress: handleManualInput,
+        },
+        {
+          text: 'Maybe Later',
+          style: 'cancel',
+          onPress: () => setLoading(false),
+        },
+      ]
+    );
   };
 
   const handleManualInput = async () => {
@@ -155,7 +85,16 @@ export default function HealthConnectScreen() {
     setSelectedOption('manual');
 
     try {
-      await setManualMode();
+      await AsyncStorage.setItem(HEALTH_CONNECT_KEY, JSON.stringify({
+        connected: true,
+        method: 'manual',
+        connectedAt: new Date().toISOString(),
+      }));
+
+      setConnectionStatus({
+        connected: true,
+        method: 'manual',
+      });
 
       Alert.alert(
         'Manual Tracking Enabled',
@@ -164,7 +103,11 @@ export default function HealthConnectScreen() {
           {
             text: isFromSettings ? 'Done' : 'Get Started',
             onPress: () => {
-              if (!isFromSettings) router.replace('/(tabs)');
+              if (isFromSettings) {
+                router.back();
+              } else {
+                router.replace('/(tabs)');
+              }
             },
           },
         ]
@@ -178,74 +121,55 @@ export default function HealthConnectScreen() {
 
   const handleSkip = async () => {
     setSelectedOption('skip');
-
-    try {
-      if (isFromSettings) {
-        router.back();
-      } else {
-        router.replace('/(tabs)');
-      }
-    } catch (error) {
-      console.error('Error:', error);
+    if (isFromSettings) {
+      router.back();
+    } else {
       router.replace('/(tabs)');
     }
   };
 
   const handleDisconnect = async () => {
     Alert.alert(
-      'Disconnect Apple Health?',
-      'Your health data will no longer sync. You can reconnect anytime.',
+      'Disconnect Tracking?',
+      'Your health tracking preference will be reset.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Disconnect',
           style: 'destructive',
           onPress: async () => {
-            await disconnect();
+            await AsyncStorage.removeItem(HEALTH_CONNECT_KEY);
+            setConnectionStatus({ connected: false, method: null });
             setSelectedOption(null);
-            setShowStats(false);
-            Alert.alert('Disconnected', 'Apple Health has been disconnected.');
+            Alert.alert('Disconnected', 'Health tracking has been disconnected.');
           },
         },
       ]
     );
   };
 
-  const handleRefreshData = async () => {
-    setLoading(true);
-    try {
-      await syncHealthData();
-      Alert.alert('Synced!', 'Your health data has been refreshed.');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to sync data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Show connected stats view
-  if (showStats && connectionStatus.connected && connectionStatus.method === 'apple_health') {
+  // Show connected view if manual mode is active and coming from settings
+  if (isFromSettings && connectionStatus.connected && connectionStatus.method === 'manual') {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text.primary }]}>Apple Health</Text>
+          <Text style={[styles.headerTitle, { color: colors.text.primary }]}>Health Tracking</Text>
           <View style={{ width: 40 }} />
         </View>
 
         <ScrollView style={styles.statsContent} contentContainerStyle={{ paddingBottom: 40 }}>
-          {/* Connection Status Card */}
           <View style={[styles.statusCard, { backgroundColor: colors.background.secondary }]}>
             <View style={styles.statusHeader}>
-              <Image source={{ uri: appleHealthIcon }} style={styles.statusIcon} resizeMode="contain" />
+              <View style={[styles.statusIconContainer, { backgroundColor: `${accent.primary}20` }]}>
+                <Ionicons name="fitness" size={28} color={accent.primary} />
+              </View>
               <View style={styles.statusInfo}>
-                <Text style={[styles.statusTitle, { color: colors.text.primary }]}>Connected</Text>
+                <Text style={[styles.statusTitle, { color: colors.text.primary }]}>Manual Tracking</Text>
                 <Text style={[styles.statusSubtitle, { color: colors.text.muted }]}>
-                  Last synced: {connectionStatus.lastSync
-                    ? new Date(connectionStatus.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : 'Never'}
+                  Calories calculated from workouts
                 </Text>
               </View>
               <View style={[styles.statusBadge, { backgroundColor: '#10B98120' }]}>
@@ -254,110 +178,26 @@ export default function HealthConnectScreen() {
             </View>
           </View>
 
-          {/* Today's Stats */}
-          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>{"Today's Data"}</Text>
-
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: colors.background.secondary }]}>
-              <Ionicons name="footsteps" size={28} color={accent.primary} />
-              <Text style={[styles.statValue, { color: colors.text.primary }]}>
-                {todayData?.steps?.toLocaleString() || '0'}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.text.muted }]}>Steps</Text>
-            </View>
-
-            <View style={[styles.statCard, { backgroundColor: colors.background.secondary }]}>
-              <Ionicons name="flame" size={28} color="#EF4444" />
-              <Text style={[styles.statValue, { color: colors.text.primary }]}>
-                {todayData?.activeCalories?.toLocaleString() || '0'}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.text.muted }]}>Active Cal</Text>
-            </View>
-
-            <View style={[styles.statCard, { backgroundColor: colors.background.secondary }]}>
-              <Ionicons name="navigate" size={28} color="#3B82F6" />
-              <Text style={[styles.statValue, { color: colors.text.primary }]}>
-                {todayData?.distance?.toFixed(1) || '0.0'}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.text.muted }]}>Miles</Text>
-            </View>
-
-            <View style={[styles.statCard, { backgroundColor: colors.background.secondary }]}>
-              <Ionicons name="heart" size={28} color="#EC4899" />
-              <Text style={[styles.statValue, { color: colors.text.primary }]}>
-                {todayData?.avgHeartRate || '--'}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.text.muted }]}>Avg BPM</Text>
-            </View>
-          </View>
-
-          {/* Workouts Today */}
-          {todayData?.workouts && todayData.workouts.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
-                {"Today's Workouts"} ({todayData.workouts.length})
-              </Text>
-              {todayData.workouts.map((workout, index) => (
-                <View
-                  key={index}
-                  style={[styles.workoutCard, { backgroundColor: colors.background.secondary }]}
-                >
-                  <View style={[styles.workoutIcon, { backgroundColor: `${accent.primary}20` }]}>
-                    <MaterialCommunityIcons name="dumbbell" size={24} color={accent.primary} />
-                  </View>
-                  <View style={styles.workoutInfo}>
-                    <Text style={[styles.workoutName, { color: colors.text.primary }]}>
-                      {workout.activityName}
-                    </Text>
-                    <Text style={[styles.workoutDetails, { color: colors.text.muted }]}>
-                      {workout.duration} min • {workout.calories} cal
-                      {workout.distance ? ` • ${workout.distance.toFixed(1)} mi` : ''}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </>
-          )}
-
-          {/* Actions */}
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: accent.primary }]}
-              onPress={handleRefreshData}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="refresh" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>Refresh Data</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.secondaryButton, { borderColor: colors.border.primary }]}
-              onPress={handleDisconnect}
-            >
-              <Ionicons name="unlink" size={20} color="#EF4444" />
-              <Text style={[styles.actionButtonText, { color: '#EF4444' }]}>Disconnect</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Info */}
           <View style={[styles.infoContainer, { backgroundColor: `${accent.primary}10` }]}>
             <Ionicons name="information-circle" size={20} color={accent.primary} />
             <Text style={[styles.infoText, { color: colors.text.secondary }]}>
-              Data syncs automatically when you open the app. Your health data is encrypted and stored securely.
+              Your calories are estimated based on your workout data and profile information. Apple HealthKit integration is coming soon!
             </Text>
           </View>
+
+          <TouchableOpacity
+            style={[styles.disconnectButton, { borderColor: '#EF4444' }]}
+            onPress={handleDisconnect}
+          >
+            <Ionicons name="unlink" size={20} color="#EF4444" />
+            <Text style={[styles.disconnectButtonText, { color: '#EF4444' }]}>Reset Tracking Preference</Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     );
   }
 
-  // Show setup/connection view
+  // Show setup view
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       {isFromSettings && (
@@ -377,12 +217,10 @@ export default function HealthConnectScreen() {
           { paddingTop: isFromSettings ? 20 : 40 },
         ]}
       >
-        {/* Header Icon */}
         <View style={[styles.iconContainer, { backgroundColor: `${accent.primary}15` }]}>
           <Ionicons name="fitness" size={60} color={accent.primary} />
         </View>
 
-        {/* Title */}
         <Text style={[styles.title, { color: colors.text.primary }]}>
           {isFromSettings
             ? 'Connect Health Tracking'
@@ -390,14 +228,11 @@ export default function HealthConnectScreen() {
         </Text>
 
         <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
-          {Platform.OS === 'ios'
-            ? 'Connect to Apple Health for automatic step, calorie, and workout tracking'
-            : 'Connect to Health Connect for automatic tracking'}
+          Track your calories burned during workouts
         </Text>
 
-        {/* Options */}
         <View style={styles.optionsContainer}>
-                  {/* Option 1: Connect to Apple Health */}
+          {/* Option 1: Apple Health - Coming Soon */}
           <TouchableOpacity
             style={[
               styles.optionCard,
@@ -418,19 +253,14 @@ export default function HealthConnectScreen() {
                 {Platform.OS === 'ios' ? 'Connect to Apple Health' : 'Connect to Health Connect'}
               </Text>
               <Text style={[styles.optionDescription, { color: colors.text.muted }]}>
-                {isAvailable
-                  ? 'Automatically sync steps, calories & workouts'
-                  : 'Requires a custom iOS build'}
+                Coming soon in a future update
               </Text>
             </View>
             {loading && selectedOption === 'apple_health' ? (
               <ActivityIndicator size="small" color={accent.primary} />
             ) : (
-              <View style={styles.optionArrow}>
-                {isAvailable && <View style={[styles.recommendedBadge, { backgroundColor: '#10B981' }]}>
-                  <Text style={styles.recommendedText}>Best</Text>
-                </View>}
-                <Ionicons name="chevron-forward" size={24} color={colors.text.muted} />
+              <View style={[styles.comingSoonBadge, { backgroundColor: '#F59E0B' }]}>
+                <Text style={styles.comingSoonText}>Soon</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -448,8 +278,8 @@ export default function HealthConnectScreen() {
             onPress={handleManualInput}
             disabled={loading}
           >
-            <View style={[styles.optionIconContainer, { backgroundColor: `${accent.secondary || '#3B82F6'}20` }]}>
-              <Ionicons name="create-outline" size={28} color={accent.secondary || '#3B82F6'} />
+            <View style={[styles.optionIconContainer, { backgroundColor: `${accent.primary}20` }]}>
+              <Ionicons name="create-outline" size={28} color={accent.primary} />
             </View>
             <View style={styles.optionTextContainer}>
               <Text style={[styles.optionTitle, { color: colors.text.primary }]}>
@@ -462,7 +292,9 @@ export default function HealthConnectScreen() {
             {loading && selectedOption === 'manual' ? (
               <ActivityIndicator size="small" color={accent.primary} />
             ) : (
-              <Ionicons name="chevron-forward" size={24} color={colors.text.muted} />
+              <View style={[styles.recommendedBadge, { backgroundColor: '#10B981' }]}>
+                <Text style={styles.recommendedText}>Ready</Text>
+              </View>
             )}
           </TouchableOpacity>
 
@@ -494,23 +326,12 @@ export default function HealthConnectScreen() {
           )}
         </View>
 
-        {/* Health Data Info */}
         <View style={[styles.infoContainer, { backgroundColor: `${accent.primary}10` }]}>
           <Ionicons name="shield-checkmark" size={20} color={accent.primary} />
           <Text style={[styles.infoText, { color: colors.text.secondary }]}>
             Your health data is stored securely and never shared with third parties
           </Text>
         </View>
-
-        {/* HealthKit Availability Info */}
-        {Platform.OS === 'ios' && !isAvailable && (
-          <View style={[styles.infoContainer, { backgroundColor: '#FEF3C720', marginTop: 12 }]}>
-            <Ionicons name="warning" size={20} color="#F59E0B" />
-            <Text style={[styles.infoText, { color: '#F59E0B' }]}>
-              HealthKit requires a production build. Create a TestFlight build to enable Apple Health sync.
-            </Text>
-          </View>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -605,17 +426,22 @@ const styles = StyleSheet.create({
   optionDescription: {
     fontSize: 13,
   },
-  optionArrow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   recommendedBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   recommendedText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  comingSoonBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  comingSoonText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '700',
@@ -634,7 +460,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
-  // Stats view styles
   statusCard: {
     padding: 16,
     borderRadius: 16,
@@ -644,9 +469,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  statusIcon: {
-    width: 44,
-    height: 44,
+  statusIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   statusInfo: {
@@ -667,77 +495,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
-  },
-  statCard: {
-    width: '47%',
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  workoutCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  workoutIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  workoutInfo: {
-    flex: 1,
-  },
-  workoutName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  workoutDetails: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  actionsContainer: {
-    marginTop: 24,
-    gap: 12,
-  },
-  actionButton: {
+  disconnectButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 24,
     gap: 8,
   },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-  },
-  actionButtonText: {
-    color: '#fff',
+  disconnectButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
-});  
+});
