@@ -16,7 +16,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fittraxplus.app",
-      "buildNumber": "3",
+      "buildNumber": "4",
+      "deploymentTarget": "15.1",
       "infoPlist": {
         "NSCameraUsageDescription": "Scan food items and barcodes for quick nutrition logging.",
         "NSPhotoLibraryUsageDescription": "Save progress photos and share your fitness achievements.",
