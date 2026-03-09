@@ -279,9 +279,6 @@ export default function PlansScreen() {
   const getWeekProgress = () => {
     const now = new Date();
     const dayOfWeek = now.getDay();
-      const getWeekProgress = () => {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - dayOfWeek);
     startOfWeek.setHours(0, 0, 0, 0);
@@ -291,12 +288,10 @@ export default function PlansScreen() {
       return completedDate >= startOfWeek;
     });
     
-    // Count unique workout days completed this week
     const uniqueDays = new Set(weekCompletions.map(h => h.completedDate));
     return uniqueDays.size;
   };
 
-  // Render calendar
   const renderCalendar = () => {
     const daysInMonth = getDaysInMonth(currentYear, currentMonth);
     const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
@@ -305,12 +300,10 @@ export default function PlansScreen() {
     
     const days = [];
     
-    // Empty cells for days before first of month
     for (let i = 0; i < firstDay; i++) {
       days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
     }
     
-    // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isCompleted = completedDates.includes(dateString);
@@ -350,7 +343,6 @@ export default function PlansScreen() {
     );
   }
 
-  // No plan - show create plan CTA
   if (!generatedPlan) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
@@ -395,7 +387,6 @@ export default function PlansScreen() {
     );
   }
 
-  // Show the plan
   const goalColor = GOAL_COLORS[generatedPlan.goal] || accent.primary;
   const goalIcon = GOAL_ICONS[generatedPlan.goal] || 'fitness';
   const goalImage = GOAL_IMAGES[generatedPlan.goal] || GOAL_IMAGES['general'];
@@ -410,7 +401,6 @@ export default function PlansScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={[styles.title, { color: colors.text.primary }]}>My Plan</Text>
@@ -423,7 +413,6 @@ export default function PlansScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Plan Hero Card */}
         <View style={styles.planHeroCard}>
           <Image 
             source={{ uri: goalImage }}
@@ -445,7 +434,6 @@ export default function PlansScreen() {
           </LinearGradient>
         </View>
 
-        {/* Workout Schedule Calendar */}
         <View style={[styles.calendarCard, { backgroundColor: colors.background.card }]}>
           <View style={styles.calendarHeader}>
             <Text style={[styles.calendarTitle, { color: colors.text.primary }]}>
@@ -457,7 +445,6 @@ export default function PlansScreen() {
             </View>
           </View>
           
-          {/* Month Navigation */}
           <View style={styles.monthNav}>
             <TouchableOpacity onPress={goToPreviousMonth} style={styles.monthNavButton}>
               <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
@@ -470,19 +457,16 @@ export default function PlansScreen() {
             </TouchableOpacity>
           </View>
           
-          {/* Day Headers */}
           <View style={styles.dayHeaders}>
             {DAY_NAMES.map(day => (
               <Text key={day} style={[styles.dayHeader, { color: colors.text.muted }]}>{day}</Text>
             ))}
           </View>
           
-          {/* Calendar Grid */}
           <View style={styles.calendarGrid}>
             {renderCalendar()}
           </View>
           
-          {/* Week Stats */}
           <View style={[styles.weekStats, { borderTopColor: colors.border.secondary }]}>
             <View style={styles.weekStatItem}>
               <Text style={[styles.weekStatValue, { color: goalColor }]}>{weekProgress}</Text>
@@ -498,7 +482,6 @@ export default function PlansScreen() {
             </View>
           </View>
           
-          {/* Reset Week Button */}
           <TouchableOpacity 
             style={[styles.resetWeekButton, { borderColor: colors.border.secondary }]}
             onPress={handleResetWeekWorkouts}
@@ -508,7 +491,6 @@ export default function PlansScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Plan Details */}
         <View style={[styles.detailsCard, { backgroundColor: colors.background.card }]}>
           <View style={styles.detailsRow}>
             <View style={styles.detailItem}>
@@ -541,7 +523,6 @@ export default function PlansScreen() {
           </View>
         </View>
 
-        {/* Weekly Workouts */}
         <View style={styles.scheduleSection}>
           <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
             Weekly Workouts
@@ -561,7 +542,6 @@ export default function PlansScreen() {
                   isCompletedToday && styles.workoutCardCompleted
                 ]}
               >
-                {/* Workout Header with Image */}
                 <TouchableOpacity 
                   onPress={() => setExpandedWorkout(isExpanded ? null : index)}
                   activeOpacity={0.9}
@@ -605,7 +585,7 @@ export default function PlansScreen() {
                     </View>
                   </View>
                 </TouchableOpacity>
-                                {/* Expanded Exercises List */}
+
                 {isExpanded && workout.exercises && (
                   <View style={[styles.exercisesList, { backgroundColor: colors.background.elevated }]}>
                     {workout.exercises.map((exercise: any, exIndex: number) => (
@@ -647,7 +627,6 @@ export default function PlansScreen() {
                       </View>
                     ))}
                     
-                    {/* Action Buttons */}
                     <View style={styles.workoutActions}>
                       {!isCompletedToday ? (
                         <TouchableOpacity
@@ -670,7 +649,6 @@ export default function PlansScreen() {
                   </View>
                 )}
                 
-                {/* Collapsed state - show button */}
                 {!isExpanded && (
                   <View style={styles.collapsedActions}>
                     <TouchableOpacity
@@ -687,7 +665,6 @@ export default function PlansScreen() {
           })}
         </View>
 
-        {/* Quick Actions */}
         <View style={styles.actionsSection}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.background.card }]}
@@ -755,8 +732,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // Empty state
   emptyState: {
     borderRadius: 20,
     overflow: 'hidden',
@@ -808,8 +783,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-
-  // Plan Hero Card
   planHeroCard: {
     borderRadius: 20,
     overflow: 'hidden',
@@ -851,8 +824,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     lineHeight: 18,
   },
-
-  // Calendar Card
   calendarCard: {
     borderRadius: 16,
     padding: 16,
@@ -969,8 +940,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-
-  // Details Card
   detailsCard: {
     borderRadius: 16,
     padding: 16,
@@ -1002,7 +971,6 @@ const styles = StyleSheet.create({
   equipmentText: {
     fontSize: 14,
   },
-    // Schedule Section
   scheduleSection: {
     marginBottom: 20,
   },
@@ -1011,8 +979,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 16,
   },
-
-  // Workout Card
   workoutCard: {
     borderRadius: 16,
     overflow: 'hidden',
@@ -1084,8 +1050,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     fontSize: 14,
   },
-
-  // Exercises List
   exercisesList: {
     padding: 16,
   },
@@ -1165,8 +1129,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-
-  // Actions Section
   actionsSection: {
     gap: 12,
   },
